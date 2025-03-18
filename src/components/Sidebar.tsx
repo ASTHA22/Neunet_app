@@ -1,11 +1,12 @@
-import { Box, VStack, Icon, Text, Link as ChakraLink, Button, Flex } from '@chakra-ui/react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { FiHome, FiBriefcase, FiUsers, FiSettings, FiLogOut, FiMessageCircle, FiHelpCircle } from 'react-icons/fi'
-import { AnimatedLogo } from './AnimatedLogo'
+import React from 'react';
+import { Box, VStack, Icon, Text, Link as ChakraLink, Button, Flex } from '@chakra-ui/react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FiHome, FiBriefcase, FiUsers, FiSettings, FiLogOut, FiMessageCircle, FiHelpCircle } from 'react-icons/fi';
+import { AnimatedLogo } from './AnimatedLogo';
 
 const SidebarLink = ({ to, icon, children }: { to: string; icon: any; children: string }) => {
-  const location = useLocation()
-  const isActive = location.pathname === to
+  const location = useLocation();
+  const isActive = location.pathname === to;
 
   return (
     <ChakraLink
@@ -25,16 +26,16 @@ const SidebarLink = ({ to, icon, children }: { to: string; icon: any; children: 
       <Icon as={icon} boxSize={5} />
       <Text fontWeight={isActive ? "medium" : "normal"}>{children}</Text>
     </ChakraLink>
-  )
-}
+  );
+};
 
 export const Sidebar = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     // Add logout logic here (clear tokens, etc.)
-    navigate('/login')
-  }
+    navigate('/login');
+  };
 
   return (
     <Flex
@@ -51,11 +52,11 @@ export const Sidebar = () => {
     >
       {/* Top section with logo and main navigation */}
       <VStack spacing={2} align="stretch">
-        <Text fontSize="xl" fontWeight="bold" mb={8} px={3} color="gray.900" display="flex" alignItems="center" gap={2}>
+        <Box fontSize="xl" fontWeight="bold" mb={8} px={3} color="gray.900" display="flex" alignItems="center" gap={2}>
           <AnimatedLogo />
-          Neunet
-        </Text>
-        
+          <Text>Neunet</Text>
+        </Box>
+
         <VStack spacing={1} align="stretch">
           <SidebarLink to="/dashboard" icon={FiHome}>
             Home
@@ -94,5 +95,5 @@ export const Sidebar = () => {
         </Button>
       </VStack>
     </Flex>
-  )
-}
+  );
+};

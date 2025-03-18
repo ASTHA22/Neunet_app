@@ -1,106 +1,200 @@
+import React, { useEffect, useState } from 'react';
 import {
   Box,
-  Container,
   Heading,
-  HStack,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
   Text,
   VStack,
-} from '@chakra-ui/react'
-import { Link as RouterLink } from 'react-router-dom'
+  HStack,
+  Badge,
+  useColorModeValue,
+  Divider,
+  Button,
+  Flex,
+  Icon,
+} from '@chakra-ui/react';
+import { FiUsers, FiSend } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { fetchJobs, getJobCandidates } from '../services/api';
+import { Job } from '../types/job';
 
-interface JobCardProps {
-  title: string
-  jobId: string
-  applicants: number
-}
+export const JobListings: React.FC = () => {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
+  const bgColor = useColorModeValue('white', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const navigate = useNavigate();
 
-const JobCard = ({ title, jobId, applicants }: JobCardProps) => (
-  <Box
-    as={RouterLink}
-    to={`/job-candidates/${jobId}`}
-    p={6}
-    borderWidth={1}
-    borderRadius="lg"
-    _hover={{ bg: 'rgba(156, 108, 254, 0.05)' }}
-    width="full"
-  >
-    <HStack justify="space-between">
-      <VStack align="start" spacing={1}>
-        <Text fontSize="lg" fontWeight="medium">
-          {title}
-        </Text>
-        <Text color="gray.600" fontSize="sm">
-          Job ID: {jobId}
-        </Text>
-      </VStack>
-      <VStack align="end" spacing={1}>
-        <Text color="#9C6CFE" fontWeight="medium">
-          {applicants} Candidates
-        </Text>
-        <Text color="gray.600" fontSize="sm">
-          Applied
-        </Text>
-      </VStack>
-    </HStack>
-  </Box>
-)
+  const loadCandidateCounts = async (fetchedJobs: Job[]) => {
+    const counts: Record<string, number> = {};
+    for (const job of fetchedJobs) {
+      try {
+        const candidates = await getJobCandidates(job.job_id);
+        console.log(`Candidates for job ${job.job_id}:`, candidates); // Debug log
+        counts[job.job_id] = candidates?.length || 0;
+      } catch (error) {
+        console.error(`Error fetching candidates for job ${job.job_id}:`, error);
+        counts[job.job_id] = 0;
+      }
+    }
+    console.log('Updated candidate counts:', counts); // Debug log
+    setCandidateCounts(counts);
+  };
 
-export const JobListings = () => {
-  const activeJobs = [
-    {
-      title: 'Senior Frontend Developer',
-      jobId: 'FE-2025-001',
-      applicants: 12,
-    },
-    {
-      title: 'Backend Engineer',
-      jobId: 'BE-2025-002',
-      applicants: 8,
-    },
-  ]
+  const loadJobs = async () => {
+    try {
+      const fetchedJobs = await fetchJobs();
+      console.log('Fetched jobs:', fetchedJobs); // Debug log
+      setJobs(fetchedJobs);
+      await loadCandidateCounts(fetchedJobs);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+  };
 
-  const closedJobs = [
-    {
-      title: 'UI/UX Designer',
-      jobId: 'DS-2024-001',
-      applicants: 15,
-    },
-  ]
+  // Load jobs and candidate counts on mount
+  useEffect(() => {
+    loadJobs();
+  }, []);
+
+  // Refresh candidate counts when component regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, refreshing candidate counts...'); // Debug log
+      loadCandidateCounts(jobs);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [jobs]);
+
+  // Refresh candidate counts every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing candidate counts...'); // Debug log
+      loadCandidateCounts(jobs);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [jobs]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const handleJobClick = (jobId: string) => {
+    navigate(`/job-candidates/${jobId}`);
+  };
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <Heading size="lg" mb={6}>
-        Jobs
-      </Heading>
+    <Box p={8}>
+      <Heading mb={6}>Job Listings</Heading>
+      <VStack spacing={4} align="stretch">
+        {jobs.map((job) => (
+          <Box
+            key={job.job_id}
+            p={5}
+            shadow="md"
+            borderWidth="1px"
+            borderRadius="lg"
+            bg={bgColor}
+            borderColor={borderColor}
+            cursor="pointer"
+            onClick={() => handleJobClick(job.job_id)}
+            _hover={{ transform: 'translateY(-2px)', transition: 'all 0.2s' }}
+          >
+            <VStack align="stretch" spacing={3}>
+              <Flex align="center" justify="space-between">
+                <VStack align="start" spacing={2}>
+                  <Heading size="md">{job.title}</Heading>
+                  <HStack spacing={2}>
+                    <Badge colorScheme="blue">{job.location}</Badge>
+                    <Badge colorScheme="green">{job.job_type}</Badge>
+                    <Badge colorScheme="purple">{job.salary_range}</Badge>
+                  </HStack>
+                </VStack>
+                <VStack align="end" spacing={1}>
+                  <Text color="purple.500" fontWeight="bold">
+                    {candidateCounts[job.job_id] || 0} Candidates
+                  </Text>
+                  <Text fontSize="sm" color="gray.500">
+                    ID: {job.job_id}
+                  </Text>
+                </VStack>
+              </Flex>
 
-      <Tabs>
-        <TabList mb={6}>
-          <Tab _selected={{ color: '#9C6CFE', borderColor: '#9C6CFE' }}>Active Jobs</Tab>
-          <Tab _selected={{ color: '#9C6CFE', borderColor: '#9C6CFE' }}>Closed Jobs</Tab>
-        </TabList>
+              <Text fontSize="sm" color="gray.500">
+                Posted: {formatDate(job.created_at)}
+              </Text>
 
-        <TabPanels>
-          <TabPanel px={0}>
-            <VStack spacing={4} align="stretch">
-              {activeJobs.map((job) => (
-                <JobCard key={job.jobId} {...job} />
-              ))}
+              <Divider />
+
+              <Text noOfLines={2}>
+                <strong>Description:</strong> {job.description}
+              </Text>
+
+              <Text noOfLines={2}>
+                <strong>Requirements:</strong> {job.requirements}
+              </Text>
+
+              <Text noOfLines={2}>
+                <strong>Responsibilities:</strong> {job.responsibilities}
+              </Text>
+
+              {job.tech_stack && (
+                <Text noOfLines={1}>
+                  <strong>Tech Stack:</strong> {job.tech_stack}
+                </Text>
+              )}
+
+              <HStack spacing={4} mt={2}>
+                <Button
+                  flex={1}
+                  size="md"
+                  variant="outline"
+                  colorScheme="purple"
+                  leftIcon={<Icon as={FiUsers} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleJobClick(job.job_id);
+                  }}
+                  _hover={{
+                    bg: 'purple.50',
+                    transform: 'translateY(-1px)',
+                    shadow: 'md',
+                  }}
+                  transition="all 0.2s"
+                >
+                  View Details
+                </Button>
+                <Button
+                  flex={1}
+                  size="md"
+                  colorScheme="green"
+                  leftIcon={<Icon as={FiSend} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/apply/${job.job_id}`);
+                  }}
+                  _hover={{
+                    transform: 'translateY(-1px)',
+                    shadow: 'md',
+                  }}
+                  transition="all 0.2s"
+                >
+                  Apply Now
+                </Button>
+              </HStack>
             </VStack>
-          </TabPanel>
-          <TabPanel px={0}>
-            <VStack spacing={4} align="stretch">
-              {closedJobs.map((job) => (
-                <JobCard key={job.jobId} {...job} />
-              ))}
-            </VStack>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
-    </Container>
-  )
-}
+          </Box>
+        ))}
+      </VStack>
+    </Box>
+  );
+};
