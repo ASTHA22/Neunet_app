@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { Job } from '../types/job';
 
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://api.neunet.io'  // Production API URL
-  : 'http://localhost:8000';  // Development API URL
+// Always use localhost since we're running the backend locally
+const API_URL = 'http://localhost:8000';
 
 const apiClient = axios.create({
   baseURL: API_URL,
