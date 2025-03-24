@@ -1,11 +1,8 @@
 import axios from 'axios';
 import { Job } from '../types/job';
 
-// Use the deployed API for production, localhost for development
-const isProduction = window.location.hostname !== 'localhost';
-const API_URL = isProduction 
-  ? 'https://neunet-api.azurewebsites.net'  // Production API URL (Azure)
-  : 'http://localhost:8000';                // Development API URL
+// Always use localhost for now until Azure deployment is working
+const API_URL = 'http://localhost:8000';
 
 const apiClient = axios.create({
   baseURL: API_URL,
