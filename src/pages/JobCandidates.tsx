@@ -18,6 +18,11 @@ import {
   Badge,
   VStack,
   useToast,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
 } from '@chakra-ui/react'
 import { FiArrowLeft, FiGithub, FiDownload } from 'react-icons/fi'
 import { SiLinkedin } from 'react-icons/si'
@@ -212,39 +217,91 @@ export const JobCandidates = () => {
         </VStack>
       </Flex>
 
-      <Grid templateColumns="repeat(4, 1fr)" gap={4} mb={8}>
-        <StatBox label="Total Candidates" value={candidates.length} />
-        <StatBox label="Average Score" value={`${averageScore}%`} />
-        <StatBox label="Shortlisted" value={shortlisted} />
-        <StatBox label="Rejected" value={rejected} />
-      </Grid>
+      {/* Tabs for Candidates and Job Details */}
+      <Tabs colorScheme="purple" variant="enclosed" defaultIndex={0}>
+        <TabList>
+          <Tab>Candidates</Tab>
+          <Tab>Job Details</Tab>
+        </TabList>
+        <TabPanels>
+          {/* Candidates Tab */}
+          <TabPanel px={0}>
+            <Grid templateColumns="repeat(4, 1fr)" gap={4} mb={8}>
+              <StatBox label="Total Candidates" value={candidates.length} />
+              <StatBox label="Average Score" value={`${averageScore}%`} />
+              <StatBox label="Shortlisted" value={shortlisted} />
+              <StatBox label="Rejected" value={rejected} />
+            </Grid>
 
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading size="md">Candidates</Heading>
-        <Select
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value as 'highest' | 'lowest')}
-          width="200px"
-        >
-          <option value="highest">Highest Score First</option>
-          <option value="lowest">Lowest Score First</option>
-        </Select>
-      </Flex>
+            <Flex justify="space-between" align="center" mb={6}>
+              <Heading size="md">Candidates</Heading>
+              <Select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'highest' | 'lowest')}
+                width="200px"
+              >
+                <option value="highest">Highest Score First</option>
+                <option value="lowest">Lowest Score First</option>
+              </Select>
+            </Flex>
 
-      <VStack spacing={0} align="stretch">
-        {sortedCandidates.map((candidate) => (
-          <CandidateCard
-            key={candidate.email}
-            jobId={jobId!}
-            candidate={candidate}
-          />
-        ))}
-        {sortedCandidates.length === 0 && (
-          <Text color="gray.500" textAlign="center" py={8}>
-            No candidates have applied for this position yet.
-          </Text>
-        )}
-      </VStack>
+            <VStack spacing={0} align="stretch">
+              {sortedCandidates.map((candidate) => (
+                <CandidateCard
+                  key={candidate.email}
+                  jobId={jobId!}
+                  candidate={candidate}
+                />
+              ))}
+              {sortedCandidates.length === 0 && (
+                <Text color="gray.500" textAlign="center" py={8}>
+                  No candidates have applied for this position yet.
+                </Text>
+              )}
+            </VStack>
+          </TabPanel>
+
+          {/* Job Details Tab */}
+          <TabPanel px={0}>
+            <VStack align="start" spacing={4}>
+              <Box>
+                <Text fontWeight="semibold">Description:</Text>
+                <Text whiteSpace="pre-line">{job.description}</Text>
+              </Box>
+              {job.requirements && (
+                <Box>
+                  <Text fontWeight="semibold">Requirements:</Text>
+                  <Text whiteSpace="pre-line">{job.requirements}</Text>
+                </Box>
+              )}
+              {job.responsibilities && (
+                <Box>
+                  <Text fontWeight="semibold">Responsibilities:</Text>
+                  <Text whiteSpace="pre-line">{job.responsibilities}</Text>
+                </Box>
+              )}
+              {job.growth_opportunities && (
+                <Box>
+                  <Text fontWeight="semibold">Growth Opportunities:</Text>
+                  <Text whiteSpace="pre-line">{job.growth_opportunities}</Text>
+                </Box>
+              )}
+              {job.tech_stack && (
+                <Box>
+                  <Text fontWeight="semibold">Tech Stack:</Text>
+                  <Text>{job.tech_stack}</Text>
+                </Box>
+              )}
+              {job.salary_range && (
+                <Box>
+                  <Text fontWeight="semibold">Salary Range:</Text>
+                  <Text>{job.salary_range}</Text>
+                </Box>
+              )}
+            </VStack>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </Box>
   );
 };
