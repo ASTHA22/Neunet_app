@@ -4,6 +4,7 @@ import { AnimatedLogo } from './AnimatedLogo'
 import { Chat } from './Chat'
 import { keyframes } from '@emotion/react'
 import styled from '@emotion/styled'
+import { JobFormData } from '../pages/CreateJob';
 
 const gradientAnimation = keyframes`
   0% { background-position: 0% 50%; }
@@ -52,7 +53,7 @@ const Sparkle = ({ delay = 0 }) => (
   />
 )
 
-export const ChatWidget = () => {
+export const ChatWidget = ({ onAIGeneratedJob }: { onAIGeneratedJob?: (jobFields: Partial<JobFormData>) => void }) => {
   const { isOpen, onOpen, onClose } = useDisclosure()
 
   return (
@@ -85,7 +86,7 @@ export const ChatWidget = () => {
           </Box>
         </Box>
       </Box>
-      <Chat isOpen={isOpen} onClose={onClose} />
+      <Chat isOpen={isOpen} onClose={onClose} onAIGeneratedJob={onAIGeneratedJob} />
     </Box>
   )
 }

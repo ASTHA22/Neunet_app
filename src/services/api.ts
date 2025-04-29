@@ -108,3 +108,13 @@ export const applyForJob = async (jobId: string, application: JobApplication) =>
     throw error;
   }
 };
+
+export const generateJobDescription = async (jobData: Partial<Job>) => {
+  try {
+    const response = await apiClient.post('/api/generate-job-description', jobData);
+    return response.data;
+  } catch (error) {
+    console.error('Error generating job description:', error);
+    throw error;
+  }
+};
