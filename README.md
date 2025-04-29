@@ -113,3 +113,30 @@ The frontend communicates with the Neunet AI Services backend through:
 - Loading states for better UX
 - Responsive design
 - Accessibility considerations
+
+## Getting Started
+
+1. **Install dependencies:**
+   ```
+   npm install
+   ```
+
+2. **Run locally:**
+   ```
+   npm run dev
+   ```
+
+3. **Build for production:**
+   ```
+   npm run build
+   ```
+
+## Deployment
+
+- Deploy the `/dist` folder to Vercel or your preferred static host.
+- Make sure your API URL in `src/services/api.ts` points to your production backend.
+
+## Notes
+
+- Ensure `.gitignore` is configured to avoid uploading dependencies, build output, and local config.
+- Double-check there are no local logs, debug files, or sensitive information before pushing to GitHub.
