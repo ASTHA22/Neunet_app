@@ -27,8 +27,10 @@ import {
 import { FiArrowLeft, FiGithub, FiDownload } from 'react-icons/fi'
 import { SiLinkedin } from 'react-icons/si'
 import { Link as RouterLink, useParams, useNavigate } from 'react-router-dom'
-import { fetchJobById, getJobCandidates } from '../services/api'
+import { fetchJobById, getJobCandidates, getCandidateResume } from '../services/api'
 import { Job } from '../types/job'
+
+import { ResumeData } from '../types/resume';
 
 interface Candidate {
   name: string;
@@ -37,6 +39,8 @@ interface Candidate {
   status: string;
   applied_at: string;
   cover_letter?: string;
+  resume?: ResumeData | any; // parsed resume JSON
+  resume_blob_name?: string; // Azure Blob Storage filename
 }
 
 interface CandidateCardProps {
@@ -46,8 +50,51 @@ interface CandidateCardProps {
 
 const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
   const navigate = useNavigate();
-  const { name, email, ranking, status, applied_at } = candidate;
-  
+  // Only destructure once
+  const { name, email, ranking, status, applied_at, resume, resume_blob_name } = candidate;
+
+  // Extract links from resume (support both camelCase and space keys)
+  let github = '';
+  let linkedin = '';
+  let resumeObj = resume;
+  if (typeof resume === 'string') {
+    try {
+      resumeObj = JSON.parse(resume);
+    } catch (e) {
+      resumeObj = {};
+    }
+  }
+  if (resumeObj) {
+    github = resumeObj.github || resumeObj.gitHub || resumeObj.GitHub || (resumeObj.links?.gitHub || resumeObj.links?.github || resumeObj.links?.GitHub || resumeObj["links"]?.gitHub || resumeObj["links"]?.github || resumeObj["links"]?.GitHub) || '';
+    linkedin = resumeObj.linkedin || resumeObj.linkedIn || resumeObj.LinkedIn || (resumeObj.links?.linkedIn || resumeObj.links?.linkedin || resumeObj.links?.LinkedIn || resumeObj["links"]?.linkedIn || resumeObj["links"]?.linkedin || resumeObj["links"]?.LinkedIn) || '';
+  }
+
+  // Download handler for actual resume file (PDF/DOCX)
+  const handleDownloadResume = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Fetch the resume file as a blob from backend
+      const response = await getCandidateResume(jobId, email, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      // Try to get filename from Content-Disposition header
+      const disposition = response.headers['content-disposition'];
+      let filename = 'resume.pdf';
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+      }
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Failed to download resume file.');
+    }
+  };
+
   return (
     <Box>
       <Flex 
@@ -68,39 +115,42 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
             </Text>
           </HStack>
         </Box>
-        <HStack spacing={6} align="center">
-          <Box textAlign="right">
+        <HStack spacing={4} align="center" justify="flex-end" flex={1}>
+          <Box textAlign="right" minW="56px">
             <Text color="#9C6CFE" fontSize="xl" fontWeight="bold">
               {Math.round(ranking * 100)}
             </Text>
             <Text fontSize="xs" color="gray.500">Score</Text>
           </Box>
-          <HStack spacing={2} onClick={(e) => e.stopPropagation()}>
-            <IconButton
-              aria-label="GitHub"
-              icon={<Icon as={FiGithub} />}
-              size="sm"
-              variant="ghost"
-              as={RouterLink}
-              to="#"
-            />
-            <IconButton
-              aria-label="LinkedIn"
-              icon={<Icon as={SiLinkedin} />}
-              size="sm"
-              variant="ghost"
-              as={RouterLink}
-              to="#"
-            />
+          {github && (
+            <a href={github} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+              <IconButton
+                aria-label="GitHub"
+                icon={<Icon as={FiGithub} />}
+                size="sm"
+                variant="ghost"
+              />
+            </a>
+          )}
+          {linkedin && (
+            <a href={linkedin} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+              <IconButton
+                aria-label="LinkedIn"
+                icon={<Icon as={SiLinkedin} />}
+                size="sm"
+                variant="ghost"
+              />
+            </a>
+          )}
+          {(resume || resume_blob_name) && (
             <IconButton
               aria-label="Download Resume"
               icon={<Icon as={FiDownload} />}
               size="sm"
               variant="ghost"
-              as={RouterLink}
-              to="#"
+              onClick={handleDownloadResume}
             />
-          </HStack>
+          )}
         </HStack>
       </Flex>
       <Divider />
@@ -145,6 +195,8 @@ export const JobCandidates = () => {
         console.log('Loaded candidates:', candidatesData); // Debug log
         setJob(jobData);
         setCandidates(candidatesData || []);
+        // Debug: log candidate data to inspect resume, github, linkedin fields
+        console.log('[JobCandidates] Candidates loaded:', candidatesData);
       } catch (error) {
         console.error('Error loading job and candidates:', error);
         toast({

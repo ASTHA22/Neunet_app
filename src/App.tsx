@@ -11,6 +11,7 @@ import { CandidateDetails } from './pages/CandidateDetails'
 import { ApplyJob } from './pages/ApplyJob'
 import { Sidebar } from './components/Sidebar'
 import { ChatWidget } from './components/ChatWidget'
+import ResumeParser from './components/ResumeParser'
 import { JobFormData } from './pages/CreateJob'
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
           <Route path="/apply/:jobId" element={<ApplyJob />} />
           <Route path="/job-candidates/:jobId" element={<JobCandidates />} />
           <Route path="/job-candidates/:jobId/candidate/:candidateId" element={<CandidateDetails />} />
+          <Route path="/resume-parser" element={<ResumeParser />} />
         </Routes>
       </Box>
       {!isLoginPage && !isChatPage && (

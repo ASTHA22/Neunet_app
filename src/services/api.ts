@@ -89,19 +89,29 @@ export const updateCandidateStatus = async (jobId: string, candidateEmail: strin
   }
 };
 
-export const getCandidateResume = async (email: string) => {
+export const getCandidateResume = async (jobId: string, email: string, config = {}) => {
   try {
-    const response = await apiClient.get(`/candidates/${email}/resume`);
-    return response.data;
+    return await apiClient.get(`/candidates/${jobId}/${email}/resume`, config);
   } catch (error) {
     console.error('Error fetching resume:', error);
     throw error;
   }
 };
 
-export const applyForJob = async (jobId: string, application: JobApplication) => {
+export const applyForJob = async (jobId: string, application: any) => {
   try {
-    const response = await apiClient.post(`/jobs/${jobId}/apply`, application);
+    const formData = new FormData();
+    formData.append('name', application.name);
+    formData.append('email', application.email);
+    formData.append('cover_letter', application.cover_letter || '');
+    formData.append('ranking', application.ranking || 0.85);
+    formData.append('resume', application.resume); // application.resume should be a File object
+
+    const response = await apiClient.post(
+      `/jobs/${jobId}/apply`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
     return response.data;
   } catch (error) {
     console.error('Error submitting application:', error);
