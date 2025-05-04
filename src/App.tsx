@@ -7,7 +7,7 @@ import { JobListings } from './pages/JobListings'
 import { CreateJob } from './pages/CreateJob'
 import { ChatPage } from './pages/ChatPage'
 import { JobCandidates } from './pages/JobCandidates'
-import { CandidateDetails } from './pages/CandidateDetails'
+import CandidateDetails from './pages/CandidateDetails'
 import { ApplyJob } from './pages/ApplyJob'
 import { Sidebar } from './components/Sidebar'
 import { ChatWidget } from './components/ChatWidget'
@@ -59,7 +59,7 @@ function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/apply/:jobId" element={<ApplyJob />} />
           <Route path="/job-candidates/:jobId" element={<JobCandidates />} />
-          <Route path="/job-candidates/:jobId/candidate/:candidateId" element={<CandidateDetails />} />
+          <Route path="/candidates/:candidateId" element={<CandidateDetails />} />
           <Route path="/resume-parser" element={<ResumeParser />} />
         </Routes>
       </Box>

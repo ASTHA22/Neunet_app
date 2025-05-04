@@ -26,13 +26,14 @@ import {
 } from '@chakra-ui/react'
 import { FiArrowLeft, FiGithub, FiDownload } from 'react-icons/fi'
 import { SiLinkedin } from 'react-icons/si'
-import { Link as RouterLink, useParams, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchJobById, getJobCandidates, getCandidateResume } from '../services/api'
 import { Job } from '../types/job'
 
 import { ResumeData } from '../types/resume';
 
 interface Candidate {
+  candidate_id?: string; // Unique candidate identifier
   name: string;
   email: string;
   ranking: number;
@@ -51,7 +52,7 @@ interface CandidateCardProps {
 const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
   const navigate = useNavigate();
   // Only destructure once
-  const { name, email, ranking, status, applied_at, resume, resume_blob_name } = candidate;
+  const { candidate_id, name, email, ranking, status, applied_at, resume, resume_blob_name } = candidate;
 
   // Extract links from resume (support both camelCase and space keys)
   let github = '';
@@ -102,7 +103,7 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
         align="center"
         _hover={{ bg: 'gray.50', cursor: 'pointer' }}
         borderRadius="md"
-        onClick={() => navigate(`/job-candidates/${jobId}/candidate/${email}`)}
+        onClick={() => navigate(`/candidates/${encodeURIComponent(candidate.candidate_id || candidate.email)}`)}
       >
         <Avatar size="md" name={name} mr={4} />
         <Box flex={1}>
@@ -172,6 +173,7 @@ const StatBox = ({ label, value }: { label: string; value: string | number }) =>
 )
 
 export const JobCandidates = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { jobId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -270,7 +272,16 @@ export const JobCandidates = () => {
       </Flex>
 
       {/* Tabs for Candidates and Job Details */}
-      <Tabs colorScheme="purple" variant="enclosed" defaultIndex={0}>
+      {/* --- Tab URL Sync Start --- */}
+      {/* This enables tab selection via ?tab=candidates or ?tab=details in the URL */}
+      <Tabs
+        colorScheme="purple"
+        variant="enclosed"
+        index={searchParams.get('tab') === 'details' ? 1 : 0}
+        onChange={idx => {
+          setSearchParams({ tab: idx === 1 ? 'details' : 'candidates' });
+        }}
+      >
         <TabList>
           <Tab>Candidates</Tab>
           <Tab>Job Details</Tab>

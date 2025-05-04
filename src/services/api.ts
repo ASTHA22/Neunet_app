@@ -16,6 +16,7 @@ const apiClient = axios.create({
 
 // Types
 export interface Candidate {
+  candidate_id?: string;
   email: string;
   name: string;
   ranking: number;
@@ -85,6 +86,16 @@ export const updateCandidateStatus = async (jobId: string, candidateEmail: strin
     return response.data;
   } catch (error) {
     console.error('Error updating candidate status:', error);
+    throw error;
+  }
+};
+
+export const getCandidateById = async (candidateId: string) => {
+  try {
+    const response = await apiClient.get(`/candidates/${candidateId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching candidate:', error);
     throw error;
   }
 };
