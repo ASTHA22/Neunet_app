@@ -51,6 +51,9 @@ interface CandidateCardProps {
 
 const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
   const navigate = useNavigate();
+  const toast = useToast();
+  // Track download error for this candidate
+  const [downloadFailed, setDownloadFailed] = useState(false);
   // Only destructure once
   const { candidate_id, name, email, ranking, status, applied_at, resume, resume_blob_name } = candidate;
 
@@ -92,9 +95,18 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Failed to download resume file.');
+      setDownloadFailed(true);
+      toast({
+        title: 'Resume Not Found',
+        description: 'Failed to download resume file.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
     }
   };
+
+
 
   return (
     <Box>
@@ -143,15 +155,29 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
               />
             </a>
           )}
-          {(resume || resume_blob_name) && (
-            <IconButton
-              aria-label="Download Resume"
-              icon={<Icon as={FiDownload} />}
-              size="sm"
-              variant="ghost"
-              onClick={handleDownloadResume}
-            />
-          )}
+          {(() => {
+            // Defensive check: must be string, not empty, not 'null', not 'undefined', and must look like a file
+            const validExtensions = ['.pdf', '.doc', '.docx'];
+            const isValidResume =
+              resume_blob_name &&
+              typeof resume_blob_name === 'string' &&
+              resume_blob_name.trim() !== '' &&
+              resume_blob_name.trim().toLowerCase() !== 'null' &&
+              resume_blob_name.trim().toLowerCase() !== 'undefined' &&
+              validExtensions.some(ext => resume_blob_name.trim().toLowerCase().endsWith(ext));
+            return (
+              isValidResume && !downloadFailed && (
+                <IconButton
+                  aria-label="Download Resume"
+                  icon={<Icon as={FiDownload} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleDownloadResume}
+                />
+              )
+            );
+          })()}
+
         </HStack>
       </Flex>
       <Divider />

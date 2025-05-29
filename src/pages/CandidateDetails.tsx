@@ -228,7 +228,7 @@ const CandidateDetails: React.FC = () => {
                 />
               )}
               {/* Download Resume Button (if available) */}
-              {sortedJobsApplied.length > 0 && sortedJobsApplied[0]?.resume_blob_name && (
+              {sortedJobsApplied.length > 0 && !!sortedJobsApplied[0]?.resume_blob_name && (
                 <IconButton
                   aria-label="Download Resume"
                   icon={<FiDownload />}
