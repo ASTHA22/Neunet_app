@@ -216,18 +216,20 @@ export const JobCandidates = () => {
     loadJobAndCandidates();
   }, [jobId, toast]);
 
-  const sortedCandidates = [...candidates].sort((a, b) => {
+  // Only show candidates with a valid candidate_id
+  const filteredCandidates = candidates.filter(c => c.candidate_id && String(c.candidate_id).trim() !== '');
+  const sortedCandidates = [...filteredCandidates].sort((a, b) => {
     return sortOrder === 'highest' 
       ? b.ranking - a.ranking 
       : a.ranking - b.ranking;
   });
 
-  const averageScore = candidates.length 
-    ? Math.round(candidates.reduce((sum, c) => sum + c.ranking * 100, 0) / candidates.length) 
+  const averageScore = filteredCandidates.length 
+    ? Math.round(filteredCandidates.reduce((sum, c) => sum + c.ranking * 100, 0) / filteredCandidates.length) 
     : 0;
 
-  const shortlisted = candidates.filter(c => c.ranking >= 0.8).length;
-  const rejected = candidates.filter(c => c.ranking < 0.5).length;
+  const shortlisted = filteredCandidates.filter(c => c.ranking >= 0.8).length;
+  const rejected = filteredCandidates.filter(c => c.ranking < 0.5).length;
 
   if (!job) {
     return (
@@ -290,7 +292,7 @@ export const JobCandidates = () => {
           {/* Candidates Tab */}
           <TabPanel px={0}>
             <Grid templateColumns="repeat(4, 1fr)" gap={4} mb={8}>
-              <StatBox label="Total Candidates" value={candidates.length} />
+              <StatBox label="Total Candidates" value={filteredCandidates.length} />
               <StatBox label="Average Score" value={`${averageScore}%`} />
               <StatBox label="Shortlisted" value={shortlisted} />
               <StatBox label="Rejected" value={rejected} />
@@ -311,7 +313,7 @@ export const JobCandidates = () => {
             <VStack spacing={0} align="stretch">
               {sortedCandidates.map((candidate) => (
                 <CandidateCard
-                  key={candidate.email}
+                  key={candidate.candidate_id || candidate.email}
                   jobId={jobId!}
                   candidate={candidate}
                 />

@@ -137,6 +137,16 @@ const CandidateDetails: React.FC = () => {
           // Map location
           pr.location = pr.location || '';
         }
+        // Normalize candidate.skills to Skill[] for rendering
+        if (data) {
+          if (Array.isArray(data.skills) && data.skills.length > 0) {
+            if (typeof data.skills[0] === "string") {
+              data.skills = data.skills.map((s: string) => ({ name: s }));
+            }
+          } else if (data.parsed_resume && Array.isArray(data.parsed_resume.skills) && data.parsed_resume.skills.length > 0) {
+            data.skills = data.parsed_resume.skills.map((s: string) => ({ name: s }));
+          }
+        }
         setCandidate(data);
       } catch (err) {
         setError('Failed to load candidate details.');
@@ -303,16 +313,7 @@ const CandidateDetails: React.FC = () => {
                     </HStack>
                   </Box>
                 )}
-                {candidate.parsed_resume.skills && Array.isArray(candidate.parsed_resume.skills) && candidate.parsed_resume.skills.length > 0 && (
-                  <Box>
-                    <Text fontWeight="medium">Parsed Skills:</Text>
-                    <HStack spacing={2} flexWrap="wrap">
-                      {candidate.parsed_resume.skills.map((s: string, i: number) => (
-                        <Badge key={i} colorScheme="purple" px={2} py={1} borderRadius="full" fontSize="sm">{s}</Badge>
-                      ))}
-                    </HStack>
-                  </Box>
-                )}
+
                 {/* If all resume fields are empty, show a fallback */}
                 {!(candidate.parsed_resume.location || (candidate.parsed_resume.education && candidate.parsed_resume.education.length > 0) || (candidate.parsed_resume.experience && candidate.parsed_resume.experience.length > 0) || (candidate.parsed_resume.keywords && candidate.parsed_resume.keywords.length > 0) || (candidate.parsed_resume.skills && candidate.parsed_resume.skills.length > 0)) && (
                   <Text color="gray.400">No resume details available.</Text>

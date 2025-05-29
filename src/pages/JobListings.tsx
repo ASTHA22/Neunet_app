@@ -92,11 +92,18 @@ export const JobListings: React.FC = () => {
     navigate(`/job-candidates/${jobId}`);
   };
 
+  // Only show jobs with a valid job_id: exactly 6 digits AND a valid posted date
+  const validJobs = jobs.filter(job => {
+    const validId = typeof job.job_id === 'string' && /^[0-9]{6}$/.test(job.job_id);
+    const validDate = job.created_at && !isNaN(Date.parse(job.created_at));
+    return validId && validDate;
+  });
+
   return (
     <Box p={8}>
       <Heading mb={6}>Job Listings</Heading>
       <VStack spacing={4} align="stretch">
-        {jobs.map((job) => (
+        {validJobs.map((job) => (
           <Box
             key={job.job_id}
             p={5}
