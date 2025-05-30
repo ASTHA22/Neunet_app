@@ -131,7 +131,7 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
         <HStack spacing={4} align="center" justify="flex-end" flex={1}>
           <Box textAlign="right" minW="56px">
             <Text color="#9C6CFE" fontSize="xl" fontWeight="bold">
-              {Number.isFinite(ranking) ? Math.round(ranking * 100) : 0}
+              {Number.isFinite(ranking) ? Math.round(ranking) : 0}
             </Text>
             <Text fontSize="xs" color="gray.500">Score</Text>
           </Box>
@@ -282,7 +282,7 @@ export const JobCandidates = () => {
   });
 
   const averageScore = filteredCandidates.length 
-    ? Math.round(filteredCandidates.reduce((sum, c) => sum + (Number.isFinite(c.ranking) ? c.ranking as number : 0) * 100, 0) / filteredCandidates.length) 
+    ? Math.round(filteredCandidates.reduce((sum, c) => sum + (Number.isFinite(c.ranking) ? c.ranking as number : 0), 0) / filteredCandidates.length) 
     : 0;
 
   const shortlisted = filteredCandidates.filter(c => (Number.isFinite(c.ranking) ? c.ranking as number : 0) >= 0.8).length;
