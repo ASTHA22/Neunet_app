@@ -13,7 +13,7 @@ import {
   Divider,
 } from '@chakra-ui/react'
 import { FiArrowLeft, FiDownload } from 'react-icons/fi'
-import { Link as RouterLink, useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom' // useParams for both jobId and candidateId
 import { BsGithub } from 'react-icons/bs'
 import { FaLinkedin } from 'react-icons/fa'
 import { useNavigate } from 'react-router-dom' // Import useNavigate
@@ -30,6 +30,7 @@ interface JobApplied {
   ranking?: number;
   score?: number;
   resume_blob_name?: string;
+  explanation?: string;
 }
 
 interface CandidateData {
@@ -65,10 +66,20 @@ interface ResumeDetails {
 
 import React from 'react';
 import { useEffect, useState } from 'react';
+
+// Utility: Clamp and convert ranking to percentage (0-100%)
+function normalizeRanking(ranking: number): number {
+  // If ranking is between 0 and 1, treat as normalized float and multiply by 100
+  if (typeof ranking === 'number' && ranking > 0 && ranking <= 1) {
+    return Math.round(ranking * 100 * 1000) / 1000; // up to 3 decimals
+  }
+  // Otherwise, return as is (rounded to 3 decimals)
+  return Math.round(ranking * 1000) / 1000;
+}
 import { getCandidateById, getCandidateResume } from '../services/api';
 
 const CandidateDetails: React.FC = () => {
-  const { candidateId } = useParams<{ candidateId: string }>();
+  const { candidateId, jobId } = useParams<{ candidateId: string; jobId?: string }>();
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,13 +183,24 @@ const CandidateDetails: React.FC = () => {
   // Sort jobsApplied by applied_at descending (latest first)
   const sortedJobsApplied = candidate.jobsApplied?.sort((a, b) => new Date(b.applied_at!).getTime() - new Date(a.applied_at!).getTime()) || [];
 
-  // Find the job with the highest evaluation score
-  const highestEvalJob = sortedJobsApplied.reduce((max, job) => {
-    if (job.evaluation && (!max || (job.evaluation.total > (max.evaluation?.total || 0)))) {
+  // If jobId is present, find the job application for that job
+    // If jobId is present, find the job application for that job
+  const selectedJobEval = (jobId && candidate.jobsApplied)
+    ? candidate.jobsApplied.find(j => j.job_id === jobId)
+    : undefined;
+
+  // Fallback: If no jobId or not found, use the job with the highest ranking
+  const highestRankingJob = sortedJobsApplied.reduce((max, job) => {
+    if ((job as any).ranking !== undefined && (!max || ((job as any).ranking > (max as any)?.ranking))) {
       return job;
     }
     return max;
   }, null as any);
+
+  const evaluationJob = selectedJobEval || highestRankingJob;
+
+  // Render explanation if present
+  const showExplanation = evaluationJob && evaluationJob.explanation && evaluationJob.explanation.trim() !== '';
 
   return (
     <Box p={{ base: 2, md: 8 }} maxW="1200px" mx="auto">
@@ -308,7 +330,7 @@ const CandidateDetails: React.FC = () => {
                     <Text fontWeight="medium">Keywords:</Text>
                     <HStack spacing={2} flexWrap="wrap">
                       {candidate.parsed_resume.keywords.map((kw: string, i: number) => (
-                        <Badge key={i} colorScheme="purple" px={2} py={1} borderRadius="full" fontSize="sm">{kw}</Badge>
+                        <Badge key={i} colorScheme="purple" px={2} py={1} borderRadius="full" fontSize="xs">{kw}</Badge>
                       ))}
                     </HStack>
                   </Box>
@@ -328,27 +350,27 @@ const CandidateDetails: React.FC = () => {
         <VStack flex={1} align="stretch" spacing={6}>
           {/* Evaluation Scores */}
           <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
-            <Heading size="sm" mb={2}>Evaluation Score</Heading>
-            {highestEvalJob && highestEvalJob.evaluation ? (
+            <Heading size="sm" mb={2}>
+              Evaluation Score
+              {evaluationJob && evaluationJob.title && (
+                <Text as="span" fontSize="xs" color="gray.500" ml={2}>
+                  for {evaluationJob.title}
+                </Text>
+              )}
+            </Heading>
+            {evaluationJob && (evaluationJob as any).ranking !== undefined ? (
               <>
-                <Text fontSize="2xl" fontWeight="bold" color="purple.600" mb={2}>{highestEvalJob.evaluation.total}</Text>
-                <HStack spacing={6} justify="start" mt={2}>
-                  <Box>
-                    <Text fontWeight="medium">Technical Skills</Text>
-                    <Text color="gray.600">{highestEvalJob.evaluation.technicalSkills}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontWeight="medium">Problem Solving</Text>
-                    <Text color="gray.600">{highestEvalJob.evaluation.problemSolving}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontWeight="medium">Communication</Text>
-                    <Text color="gray.600">{highestEvalJob.evaluation.communication}</Text>
-                  </Box>
-                </HStack>
+                <Text fontSize="2xl" fontWeight="bold" color="purple.600" mb={1}>
+                  {evaluationJob?.ranking !== undefined ? `${normalizeRanking(evaluationJob.ranking)}%` : 'N/A'}
+                </Text>
+                {showExplanation && (
+                  <Text fontSize="md" color="gray.700" mt={2} mb={2}>
+                    <strong>Insights:</strong> {evaluationJob.explanation}
+                  </Text>
+                )}
               </>
             ) : (
-              <Text color="gray.500">No evaluation data available.</Text>
+              <Text color="gray.500">No ranking data available for this job.</Text>
             )}
           </Box>
           {/* GitHub Statistics */}
@@ -379,7 +401,7 @@ const CandidateDetails: React.FC = () => {
             {candidate.skills && candidate.skills.length > 0 ? (
               <HStack spacing={2} flexWrap="wrap">
                 {candidate.skills.map((skill, idx) => (
-                  <Badge key={idx} colorScheme="purple" px={3} py={1} borderRadius="full" fontSize="md" mb={2}>
+                  <Badge key={idx} colorScheme="purple" px={3} py={1} borderRadius="full" fontSize="sm" mb={2}>
                     {skill.name}
                   </Badge>
                 ))}

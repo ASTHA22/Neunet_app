@@ -49,6 +49,13 @@ interface CandidateCardProps {
   candidate: Candidate;
 }
 
+// Utility: Clamp and convert ranking to percentage (0-100%)
+function normalizeRanking(ranking: number): number {
+  // Accept floats between 0 and 1; if backend sends 0-100, convert
+  if (ranking > 1) ranking = ranking / 100;
+  return Math.min(100, Math.max(0, Math.round(ranking * 100)));
+}
+
 const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
   const navigate = useNavigate();
   const toast = useToast();
@@ -115,7 +122,7 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
         align="center"
         _hover={{ bg: 'gray.50', cursor: 'pointer' }}
         borderRadius="md"
-        onClick={() => navigate(`/candidates/${encodeURIComponent(candidate.candidate_id || candidate.email)}`)}
+        onClick={() => navigate(`/job-candidates/${encodeURIComponent(jobId)}/candidate/${encodeURIComponent(candidate.candidate_id || candidate.email)}`)}
       >
         <Avatar size="md" name={name} mr={4} />
         <Box flex={1}>
@@ -130,8 +137,9 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
         </Box>
         <HStack spacing={4} align="center" justify="flex-end" flex={1}>
           <Box textAlign="right" minW="56px">
+            {/* Display ranking as a percentage, clamped to 100% */}
             <Text color="#9C6CFE" fontSize="xl" fontWeight="bold">
-              {Number.isFinite(ranking) ? Math.round(ranking) : 0}
+              {Number.isFinite(ranking) ? `${normalizeRanking(ranking)}%` : '0%'}
             </Text>
             <Text fontSize="xs" color="gray.500">Score</Text>
           </Box>

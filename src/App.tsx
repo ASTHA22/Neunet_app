@@ -59,7 +59,8 @@ function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/apply/:jobId" element={<ApplyJob />} />
           <Route path="/job-candidates/:jobId" element={<JobCandidates />} />
-          <Route path="/candidates/:candidateId" element={<CandidateDetails />} />
+          <Route path="/job-candidates/:jobId/candidate/:candidateId" element={<CandidateDetails />} />
+<Route path="/candidates/:candidateId" element={<CandidateDetails />} />
           <Route path="/resume-parser" element={<ResumeParser />} />
         </Routes>
       </Box>
