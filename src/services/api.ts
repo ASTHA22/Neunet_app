@@ -115,7 +115,7 @@ export const applyForJob = async (jobId: string, application: any) => {
     formData.append('name', application.name);
     formData.append('email', application.email);
     formData.append('cover_letter', application.cover_letter || '');
-    formData.append('ranking', application.ranking || 0.85);
+    formData.append('ranking', application.ranking || 0.0);
     formData.append('resume', application.resume); // application.resume should be a File object
 
     const response = await apiClient.post(

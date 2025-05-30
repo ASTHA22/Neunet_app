@@ -36,7 +36,7 @@ interface Candidate {
   candidate_id?: string; // Unique candidate identifier
   name: string;
   email: string;
-  ranking: number;
+  ranking?: number; // Make optional
   status: string;
   applied_at: string;
   cover_letter?: string;
@@ -131,7 +131,7 @@ const CandidateCard = ({ jobId, candidate }: CandidateCardProps) => {
         <HStack spacing={4} align="center" justify="flex-end" flex={1}>
           <Box textAlign="right" minW="56px">
             <Text color="#9C6CFE" fontSize="xl" fontWeight="bold">
-              {Math.round(ranking * 100)}
+              {Number.isFinite(ranking) ? Math.round(ranking * 100) : 0}
             </Text>
             <Text fontSize="xs" color="gray.500">Score</Text>
           </Box>
@@ -215,16 +215,41 @@ export const JobCandidates = () => {
 
       try {
         setLoading(true);
-        const [jobData, candidatesData] = await Promise.all([
+        const [jobData, candidatesDataRaw] = await Promise.all([
           fetchJobById(jobId),
           getJobCandidates(jobId)
         ]);
 
-        console.log('Loaded candidates:', candidatesData); // Debug log
+        // Debug: log raw candidates data
+        console.log('[JobCandidates] Raw candidatesData:', candidatesDataRaw);
+
+        // Filter: Only include objects that have a name, email, and ranking (real candidates)
+        const candidatesData = (candidatesDataRaw || []).filter((c: any) => {
+          if (!c || typeof c !== 'object') return false;
+          // Accept if ranking, name, and email present
+          return ((typeof c.ranking === 'number' || typeof c.score === 'number' || (c.evaluation && typeof c.evaluation.total === 'number')) && c.name && c.email);
+        }).map((c: any) => {
+          // Fallback: If ranking is missing, but score or evaluation.total is present, use it and log a warning
+          if (typeof c.ranking !== 'number') {
+            if (typeof c.score === 'number') {
+              console.warn('[JobCandidates] Candidate missing ranking, using score as fallback:', c);
+              c.ranking = c.score;
+            } else if (c.evaluation && typeof c.evaluation.total === 'number') {
+              console.warn('[JobCandidates] Candidate missing ranking, using evaluation.total as fallback:', c);
+              c.ranking = c.evaluation.total;
+            } else {
+              // Set default to 0 if all else fails
+              console.warn('[JobCandidates] Candidate missing ranking/score/evaluation, setting ranking to 0:', c);
+              c.ranking = 0;
+            }
+          }
+          return c;
+        });
+
         setJob(jobData);
-        setCandidates(candidatesData || []);
-        // Debug: log candidate data to inspect resume, github, linkedin fields
-        console.log('[JobCandidates] Candidates loaded:', candidatesData);
+        setCandidates(candidatesData);
+        // Debug: log filtered candidate data
+        console.log('[JobCandidates] Filtered candidates:', candidatesData);
       } catch (error) {
         console.error('Error loading job and candidates:', error);
         toast({
@@ -239,23 +264,29 @@ export const JobCandidates = () => {
       }
     };
 
-    loadJobAndCandidates();
+    if (jobId) {
+      loadJobAndCandidates();
+    }
   }, [jobId, toast]);
 
   // Only show candidates with a valid candidate_id
   const filteredCandidates = candidates.filter(c => c.candidate_id && String(c.candidate_id).trim() !== '');
   const sortedCandidates = [...filteredCandidates].sort((a, b) => {
-    return sortOrder === 'highest' 
-      ? b.ranking - a.ranking 
-      : a.ranking - b.ranking;
+    const aRank = Number.isFinite(a.ranking) ? a.ranking as number : 0;
+    const bRank = Number.isFinite(b.ranking) ? b.ranking as number : 0;
+    if (sortOrder === 'highest') {
+      return bRank - aRank;
+    } else {
+      return aRank - bRank;
+    }
   });
 
   const averageScore = filteredCandidates.length 
-    ? Math.round(filteredCandidates.reduce((sum, c) => sum + c.ranking * 100, 0) / filteredCandidates.length) 
+    ? Math.round(filteredCandidates.reduce((sum, c) => sum + (Number.isFinite(c.ranking) ? c.ranking as number : 0) * 100, 0) / filteredCandidates.length) 
     : 0;
 
-  const shortlisted = filteredCandidates.filter(c => c.ranking >= 0.8).length;
-  const rejected = filteredCandidates.filter(c => c.ranking < 0.5).length;
+  const shortlisted = filteredCandidates.filter(c => (Number.isFinite(c.ranking) ? c.ranking as number : 0) >= 0.8).length;
+  const rejected = filteredCandidates.filter(c => (Number.isFinite(c.ranking) ? c.ranking as number : 0) < 0.5).length;
 
   if (!job) {
     return (
@@ -338,11 +369,14 @@ export const JobCandidates = () => {
 
             <VStack spacing={0} align="stretch">
               {sortedCandidates.map((candidate) => (
-                <CandidateCard
-                  key={candidate.candidate_id || candidate.email}
-                  jobId={jobId!}
-                  candidate={candidate}
-                />
+                // Defensive: Only render if candidate has a ranking, name, and email
+                (typeof candidate.ranking === 'number' && candidate.name && candidate.email) ? (
+                  <CandidateCard
+                    key={candidate.candidate_id || candidate.email}
+                    jobId={jobId!}
+                    candidate={candidate}
+                  />
+                ) : null
               ))}
               {sortedCandidates.length === 0 && (
                 <Text color="gray.500" textAlign="center" py={8}>
