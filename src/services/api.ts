@@ -2,10 +2,10 @@ import axios from 'axios';
 import { Job } from '../types/job';
 
 // Use the deployed API for production, localhost for development
-const isProduction = window.location.hostname !== 'localhost';
-const API_URL = isProduction 
-  ? 'https://neunet-ai-services.onrender.com'  // Production API URL (Render)
-  : 'http://localhost:8000';                // Development API URL
+const isProduction = window.location.hostname === 'www.neunet.io';
+const API_URL = isProduction
+  ? 'https://neunet-ai-services.onrender.com' // Production API URL
+  : 'http://localhost:8000';                 // Local FastAPI backend
 
 const apiClient = axios.create({
   baseURL: API_URL,
