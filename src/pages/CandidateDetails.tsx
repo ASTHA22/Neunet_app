@@ -266,13 +266,11 @@ const CandidateDetails: React.FC = () => {
     variant="ghost"
     size="md"
     isDisabled={(() => {
-      const s = (selectedJobEval?.status || '').trim().toLowerCase();
-      if (actionInProgress === 'reject') return true;
-      if (s === 'shortlisted') return true; // disable shortlist when shortlisted
-      if (s === 'rejected') return true;    // disable shortlist when rejected
-      if (s === 'applied') return false;    // enable shortlist when applied
-      return false;
-    })()}
+  const s = (selectedJobEval?.status || '').trim().toLowerCase();
+  if (actionInProgress === 'shortlist' || actionInProgress === 'reject') return true;
+  if (s === 'rejected') return true;
+  return false;
+})()}
     isLoading={actionInProgress === 'shortlist'}
     onClick={async () => {
       setActionInProgress('shortlist');
@@ -288,7 +286,64 @@ const CandidateDetails: React.FC = () => {
         toast({ title: 'Candidate Shortlisted', status: 'success', duration: 2000 });
         // Reload candidate data (like reloadCandidates in JobCandidates)
         const updatedCandidate = await getCandidateById(candidateId);
-        setCandidate(updatedCandidate);
+        // Robustly parse and normalize resume after shortlisting (same as in fetchCandidate)
+if (updatedCandidate) {
+  if (updatedCandidate.resume && typeof updatedCandidate.resume === 'string') {
+    try {
+      updatedCandidate.parsed_resume = JSON.parse(updatedCandidate.resume);
+    } catch (e) {
+      updatedCandidate.parsed_resume = undefined;
+    }
+  } else if (updatedCandidate.resume && typeof updatedCandidate.resume === 'object') {
+    updatedCandidate.parsed_resume = updatedCandidate.resume;
+  }
+  if (updatedCandidate && updatedCandidate.parsed_resume) {
+    let pr = updatedCandidate.parsed_resume;
+    if (pr.success && pr.data) {
+      pr = pr.data;
+      updatedCandidate.parsed_resume = pr;
+    }
+    pr.phone_number = pr.phone_number || pr["phone number"] || '';
+    if (typeof pr.skills === 'string') {
+      pr.skills = pr.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    if (typeof pr.keywords === 'string') {
+      pr.keywords = pr.keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+    }
+    if (pr.education && Array.isArray(pr.education)) {
+      pr.education = pr.education.map((edu: any) => ({
+        ...edu,
+        institution: edu.institution || edu.institute || '',
+        year: edu.year || edu.end || '',
+      }));
+    } else {
+      pr.education = [];
+    }
+    pr.experience = pr.experience || pr['work experience'] || [];
+    if (Array.isArray(pr.experience)) {
+      pr.experience = pr.experience.map((exp: any) => ({
+        ...exp,
+        company: exp.company || exp.organization || '',
+        duration: exp.duration || `${exp['start date'] || exp.start || ''} - ${exp['end date'] || exp.end || ''}`.replace(/^ - | - $/g, ''),
+      }));
+    }
+    if (pr.links) {
+      pr.linkedIn = pr.linkedIn || pr.links.linkedIn || pr.links.linkedin || '';
+      pr.github = pr.github || pr.links.gitHub || pr.links.github || '';
+    }
+    pr.location = pr.location || '';
+  }
+  if (updatedCandidate) {
+    if (Array.isArray(updatedCandidate.skills) && updatedCandidate.skills.length > 0) {
+      if (typeof updatedCandidate.skills[0] === "string") {
+        updatedCandidate.skills = updatedCandidate.skills.map((s: string) => ({ name: s }));
+      }
+    } else if (updatedCandidate.parsed_resume && Array.isArray(updatedCandidate.parsed_resume.skills) && updatedCandidate.parsed_resume.skills.length > 0) {
+      updatedCandidate.skills = updatedCandidate.parsed_resume.skills.map((s: string) => ({ name: s }));
+    }
+  }
+}
+setCandidate(updatedCandidate);
       } catch (err) {
         toast({ title: 'Failed to shortlist candidate', status: 'error', duration: 3000 });
       } finally {
@@ -305,13 +360,11 @@ const CandidateDetails: React.FC = () => {
     variant="ghost"
     size="md"
     isDisabled={(() => {
-      const s = (selectedJobEval?.status || '').trim().toLowerCase();
-      if (actionInProgress === 'shortlist') return true;
-      if (s === 'rejected') return false;   // enable reject when rejected
-      if (s === 'shortlisted') return false; // enable reject when shortlisted
-      if (s === 'applied') return false;     // enable reject when applied
-      return false;
-    })()}
+  const s = (selectedJobEval?.status || '').trim().toLowerCase();
+  if (actionInProgress === 'shortlist' || actionInProgress === 'reject') return true;
+  if (s === 'shortlisted') return true;
+  return false;
+})()}
     isLoading={actionInProgress === 'reject'}
     onClick={() => setIsRejectDialogOpen(true)}
   />
