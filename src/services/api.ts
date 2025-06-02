@@ -80,9 +80,9 @@ export const getJobCandidates = async (jobId: string) => {
   }
 };
 
-export const updateCandidateStatus = async (jobId: string, candidateEmail: string, status: string) => {
+export const updateCandidateStatus = async (jobId: string, candidateId: string, status: string) => {
   try {
-    const response = await apiClient.post(`/jobs/${jobId}/candidates/${candidateEmail}/status`, { status });
+    const response = await apiClient.post(`/jobs/${jobId}/candidates/${candidateId}/status`, { status });
     return response.data;
   } catch (error) {
     console.error('Error updating candidate status:', error);

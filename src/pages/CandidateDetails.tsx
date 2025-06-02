@@ -11,11 +11,20 @@ import {
   VStack,
   IconButton,
   Divider,
+  Tooltip,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  Button as ChakraButton
 } from '@chakra-ui/react'
 import { FiArrowLeft, FiDownload } from 'react-icons/fi'
 import { Link as RouterLink, useParams } from 'react-router-dom' // useParams for both jobId and candidateId
 import { BsGithub } from 'react-icons/bs'
 import { FaLinkedin } from 'react-icons/fa'
+import { CheckIcon, CloseIcon } from '@chakra-ui/icons'
 import { useNavigate } from 'react-router-dom' // Import useNavigate
 
 interface Skill {
@@ -76,10 +85,19 @@ function normalizeRanking(ranking: number): number {
   // Otherwise, return as is (rounded to 3 decimals)
   return Math.round(ranking * 1000) / 1000;
 }
-import { getCandidateById, getCandidateResume } from '../services/api';
+import { getCandidateById, getCandidateResume, updateCandidateStatus } from '../services/api';
+import { useToast } from '@chakra-ui/react';
 
 const CandidateDetails: React.FC = () => {
-  const { candidateId, jobId } = useParams<{ candidateId: string; jobId?: string }>();
+  // Track action in progress for each job
+  const [jobActionInProgress, setJobActionInProgress] = useState<{ [jobId: string]: 'shortlist' | 'reject' | null }>({});
+  const [actionInProgress, setActionInProgress] = React.useState<null | 'shortlist' | 'reject'>(null);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = React.useState(false);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
+  const [selectedJobEvalStatus, setSelectedJobEvalStatus] = React.useState<string | undefined>(undefined);
+  const toast = useToast();
+
+  const { candidateId, jobId: jobIdFromParams } = useParams<{ candidateId: string; jobId?: string }>();
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,8 +203,8 @@ const CandidateDetails: React.FC = () => {
 
   // If jobId is present, find the job application for that job
     // If jobId is present, find the job application for that job
-  const selectedJobEval = (jobId && candidate.jobsApplied)
-    ? candidate.jobsApplied.find(j => j.job_id === jobId)
+  const selectedJobEval = (jobIdFromParams && candidate.jobsApplied)
+    ? candidate.jobsApplied.find(j => j.job_id === jobIdFromParams)
     : undefined;
 
   // Fallback: If no jobId or not found, use the job with the highest ranking
@@ -211,88 +229,272 @@ const CandidateDetails: React.FC = () => {
       <Flex direction={{ base: 'column', md: 'row' }} gap={8}>
         {/* Profile/Avatar Column */}
         <VStack w={{ base: '100%', md: '320px' }} align="stretch" spacing={6}>
-          <Box bg="white" borderRadius="lg" boxShadow="md" p={6} alignItems="center" textAlign="center">
-            <Avatar size="2xl" name={candidate.name} src={candidate.avatar} mb={4} />
-            <Heading size="md">{candidate.name}</Heading>
-            <Text color="gray.500" mb={2}>{candidate.role}</Text>
-            {candidate.email && <Text fontSize="sm" color="gray.600">{candidate.email}</Text>}
-            {(candidate.phone_number || candidate.parsed_resume?.phone_number) && (
-              <Text fontSize="sm" color="gray.600">
-                {candidate.phone_number || candidate.parsed_resume?.phone_number}
-              </Text>
-            )}
-            <Divider my={4} />
-            <HStack justify="center" spacing={3}>
-              {(candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github) && (
-                <IconButton
-                  as="a"
-                  href={candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github}
-                  aria-label="GitHub"
-                  icon={<BsGithub />}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="ghost"
-                  size="lg"
-                  _hover={{ color: 'purple.500', bg: 'gray.100' }}
-                />
-              )}
-              {(candidate.parsed_resume?.linkedIn || candidate.parsed_resume?.links?.linkedIn) && (
-                <IconButton
-                  as="a"
-                  href={candidate.parsed_resume?.linkedIn || candidate.parsed_resume?.links?.linkedIn}
-                  aria-label="LinkedIn"
-                  icon={<FaLinkedin />}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="ghost"
-                  size="lg"
-                  _hover={{ color: 'purple.500', bg: 'gray.100' }}
-                />
-              )}
-              {/* Download Resume Button (if available) */}
-              {sortedJobsApplied.length > 0 && !!sortedJobsApplied[0]?.resume_blob_name && (
-                <IconButton
-                  aria-label="Download Resume"
-                  icon={<FiDownload />}
-                  variant="ghost"
-                  size="lg"
-                  onClick={async () => {
-                    const jobId = sortedJobsApplied[0]?.job_id;
-                    const email = candidate.email || candidate.parsed_resume?.email;
-                    if (!jobId || !email) {
-                      alert('Resume download unavailable: missing job ID or candidate email.');
-                      return;
-                    }
-                    try {
-                      // getCandidateResume returns AxiosResponse<any>
-                      const response = await getCandidateResume(
-                        jobId,
-                        email,
-                        { responseType: 'blob' }
-                      );
-                      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
-                      const url = window.URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      const disposition = response.headers['content-disposition'];
-                      let filename = 'resume.pdf';
-                      if (disposition && disposition.indexOf('filename=') !== -1) {
-                        filename = disposition.split('filename=')[1].replace(/['"]/g, '');
-                      }
-                      link.href = url;
-                      link.setAttribute('download', filename);
-                      document.body.appendChild(link);
-                      link.click();
-                      link.remove();
-                      window.URL.revokeObjectURL(url);
-                    } catch (err) {
-                      alert('Failed to download resume file.');
-                    }
-                  }}
-                  _hover={{ color: 'purple.500', bg: 'gray.100' }}
-                />
-              )}
-            </HStack>
+          <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
+            <Flex justify="space-between" align="center">
+              <VStack align="center" spacing={2} w="100%">
+                <Avatar size="2xl" name={candidate.name} src={candidate.avatar} mb={2} />
+                <Heading size="md">{candidate.name}</Heading>
+{(() => {
+  const status = (selectedJobEval?.status || '').trim();
+  if (!status) return null;
+  const s = status.toLowerCase();
+  if (s !== 'applied' && s !== 'shortlisted' && s !== 'rejected') return null;
+  let colorScheme = 'gray';
+  if (s === 'applied') colorScheme = 'blue';
+  else if (s === 'shortlisted') colorScheme = 'green';
+  else if (s === 'rejected') colorScheme = 'red';
+  return (
+    <Badge colorScheme={colorScheme} textTransform="uppercase" fontSize="sm" mb={1}>
+      {status}
+    </Badge>
+  );
+})()}
+<Text color="gray.500" mb={1}>{candidate.role}</Text>
+                {candidate.email && <Text fontSize="sm" color="gray.600">{candidate.email}</Text>}
+                {(candidate.phone_number || candidate.parsed_resume?.phone_number) && (
+                  <Text fontSize="sm" color="gray.600">
+                    {candidate.phone_number || candidate.parsed_resume?.phone_number}
+                  </Text>
+                )}
+                {/* Action buttons below phone number, centered */}
+                <HStack spacing={3} justify="center">
+                  <Tooltip label="Shortlist" hasArrow>
+  <IconButton
+    aria-label="Shortlist"
+    icon={<CheckIcon boxSize="1.5em" />}
+    colorScheme="green"
+    variant="ghost"
+    size="md"
+    isDisabled={(() => {
+      const s = (selectedJobEval?.status || '').trim().toLowerCase();
+      if (actionInProgress === 'reject') return true;
+      if (s === 'shortlisted') return true; // disable shortlist when shortlisted
+      if (s === 'rejected') return true;    // disable shortlist when rejected
+      if (s === 'applied') return false;    // enable shortlist when applied
+      return false;
+    })()}
+    isLoading={actionInProgress === 'shortlist'}
+    onClick={async () => {
+      setActionInProgress('shortlist');
+      const jobId = jobIdFromParams || '';
+      const candidateId = candidate && candidate.candidate_id ? candidate.candidate_id : '';
+      if (!jobId || !candidateId) {
+        toast({ title: 'Missing job or candidate ID (must be UUID, not email)', status: 'error', duration: 3000 });
+        setActionInProgress(null);
+        return;
+      }
+      try {
+        await updateCandidateStatus(jobId, candidateId, 'shortlisted'); // always lowercase
+        toast({ title: 'Candidate Shortlisted', status: 'success', duration: 2000 });
+        // Reload candidate data (like reloadCandidates in JobCandidates)
+        const updatedCandidate = await getCandidateById(candidateId);
+        setCandidate(updatedCandidate);
+      } catch (err) {
+        toast({ title: 'Failed to shortlist candidate', status: 'error', duration: 3000 });
+      } finally {
+        setActionInProgress(null);
+      }
+    }}
+  />
+</Tooltip>
+<Tooltip label="Reject" hasArrow>
+  <IconButton
+    aria-label="Reject"
+    icon={<CloseIcon boxSize="1em" />}
+    colorScheme="red"
+    variant="ghost"
+    size="md"
+    isDisabled={(() => {
+      const s = (selectedJobEval?.status || '').trim().toLowerCase();
+      if (actionInProgress === 'shortlist') return true;
+      if (s === 'rejected') return false;   // enable reject when rejected
+      if (s === 'shortlisted') return false; // enable reject when shortlisted
+      if (s === 'applied') return false;     // enable reject when applied
+      return false;
+    })()}
+    isLoading={actionInProgress === 'reject'}
+    onClick={() => setIsRejectDialogOpen(true)}
+  />
+</Tooltip>
+                </HStack>
+                {/* Social/download icons row, same spacing as above */}
+                <HStack justify="center" spacing={3}>
+                  {(candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github) && (
+                    <IconButton
+                      as="a"
+                      href={candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github}
+                      aria-label="GitHub"
+                      icon={<BsGithub />}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="ghost"
+                      size="lg"
+                      _hover={{ color: 'purple.500', bg: 'gray.100' }}
+                    />
+                  )}
+                  {(candidate.parsed_resume?.linkedIn || candidate.parsed_resume?.links?.linkedIn) && (
+                    <IconButton
+                      as="a"
+                      href={candidate.parsed_resume?.linkedIn || candidate.parsed_resume?.links?.linkedIn}
+                      aria-label="LinkedIn"
+                      icon={<FaLinkedin />}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="ghost"
+                      size="lg"
+                      _hover={{ color: 'purple.500', bg: 'gray.100' }}
+                    />
+                  )}
+                  {/* Download Resume Button (if available) */}
+                  {sortedJobsApplied.length > 0 && !!sortedJobsApplied[0]?.resume_blob_name && (
+                    <IconButton
+                      aria-label="Download Resume"
+                      icon={<FiDownload />}
+                      variant="ghost"
+                      size="lg"
+                      onClick={async () => {
+                        const jobId = sortedJobsApplied[0]?.job_id;
+                        const email = candidate.email || candidate.parsed_resume?.email;
+                        if (!jobId || !email) {
+                          alert('Resume download unavailable: missing job ID or candidate email.');
+                          return;
+                        }
+                        try {
+                          // getCandidateResume returns AxiosResponse<any>
+                          const response = await getCandidateResume(
+                            jobId,
+                            email,
+                            { responseType: 'blob' }
+                          );
+                          const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          const disposition = response.headers['content-disposition'];
+                          let filename = 'resume.pdf';
+                          if (disposition && disposition.indexOf('filename=') !== -1) {
+                            filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+                          }
+                          link.href = url;
+                          link.setAttribute('download', filename);
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                          window.URL.revokeObjectURL(url);
+                        } catch (err) {
+                          alert('Failed to download resume file.');
+                        }
+                      }}
+                      _hover={{ color: 'purple.500', bg: 'gray.100' }}
+                    />
+                  )}
+                </HStack>
+              </VStack>
+            </Flex>
           </Box>
+          {/* Reject confirmation dialog */}
+          <AlertDialog
+            isOpen={isRejectDialogOpen}
+            leastDestructiveRef={cancelRef}
+            onClose={() => setIsRejectDialogOpen(false)}
+          >
+            <AlertDialogOverlay>
+              <AlertDialogContent>
+                <AlertDialogHeader fontSize="lg" fontWeight="bold">
+                  Reject Candidate
+                </AlertDialogHeader>
+                <AlertDialogBody>
+                  Are you sure you want to reject this candidate?
+                </AlertDialogBody>
+                <AlertDialogFooter>
+                  <ChakraButton ref={cancelRef} onClick={() => setIsRejectDialogOpen(false)}>
+                    Cancel
+                  </ChakraButton>
+                  <ChakraButton colorScheme="red" ml={3} isLoading={actionInProgress === 'reject'}
+                    onClick={async () => {
+                      setActionInProgress('reject');
+                      const jobId = jobIdFromParams || '';
+                      const candidateId = candidate && candidate.candidate_id ? candidate.candidate_id : '';
+                      if (!jobId || !candidateId) {
+                        toast({ title: 'Missing job or candidate ID (must be UUID, not email)', status: 'error', duration: 3000 });
+                        setActionInProgress(null);
+                        return;
+                      }
+                      try {
+                        await updateCandidateStatus(jobId, candidateId, 'rejected');
+                        toast({ title: 'Candidate Rejected', status: 'success', duration: 2000 });
+                        // reload candidate data and re-parse resume for links
+                        const data = await getCandidateById(candidateId);
+                        if (data) {
+                          if (data.resume && typeof data.resume === 'string') {
+                            try {
+                              data.parsed_resume = JSON.parse(data.resume);
+                            } catch (e) {
+                              data.parsed_resume = undefined;
+                            }
+                          } else if (data.resume && typeof data.resume === 'object') {
+                            data.parsed_resume = data.resume;
+                          }
+                          // resume normalization (as in fetchCandidate)
+                          if (data && data.parsed_resume) {
+                            let pr = data.parsed_resume;
+                            if (pr.success && pr.data) {
+                              pr = pr.data;
+                              data.parsed_resume = pr;
+                            }
+                            pr.phone_number = pr.phone_number || pr["phone number"] || '';
+                            if (typeof pr.skills === 'string') {
+                              pr.skills = pr.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+                            }
+                            if (typeof pr.keywords === 'string') {
+                              pr.keywords = pr.keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+                            }
+                            if (pr.education && Array.isArray(pr.education)) {
+                              pr.education = pr.education.map((edu: any) => ({
+                                ...edu,
+                                institution: edu.institution || edu.institute || '',
+                                year: edu.year || edu.end || '',
+                              }));
+                            } else {
+                              pr.education = [];
+                            }
+                            pr.experience = pr.experience || pr['work experience'] || [];
+                            if (Array.isArray(pr.experience)) {
+                              pr.experience = pr.experience.map((exp: any) => ({
+                                ...exp,
+                                company: exp.company || exp.organization || '',
+                                duration: exp.duration || `${exp['start date'] || exp.start || ''} - ${exp['end date'] || exp.end || ''}`.replace(/^ - | - $/g, ''),
+                              }));
+                            }
+                            if (pr.links) {
+                              pr.linkedIn = pr.linkedIn || pr.links.linkedIn || pr.links.linkedin || '';
+                              pr.github = pr.github || pr.links.gitHub || pr.links.github || '';
+                            }
+                            pr.location = pr.location || '';
+                          }
+                          if (data) {
+                            if (Array.isArray(data.skills) && data.skills.length > 0) {
+                              if (typeof data.skills[0] === "string") {
+                                data.skills = data.skills.map((s: string) => ({ name: s }));
+                              }
+                            } else if (data.parsed_resume && Array.isArray(data.parsed_resume.skills) && data.parsed_resume.skills.length > 0) {
+                              data.skills = data.parsed_resume.skills.map((s: string) => ({ name: s }));
+                            }
+                          }
+                        }
+                        setCandidate(data);
+                        setIsRejectDialogOpen(false);
+                      } catch (err) {
+                        toast({ title: 'Failed to reject candidate', status: 'error', duration: 3000 });
+                      } finally {
+                        setActionInProgress(null);
+                      }
+                    }}>
+                    Reject
+                  </ChakraButton>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialogOverlay>
+          </AlertDialog>
           {/* Resume Details Card */}
           <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
             <Heading size="sm" mb={2}>Resume Details</Heading>
@@ -423,26 +625,26 @@ const CandidateDetails: React.FC = () => {
                         Job ID: {job.job_id}
                       </Text>
                       <HStack spacing={2} mt={1}>
-                        <Badge
-                          colorScheme={
-                            job.status?.toLowerCase() === 'applied'
-                              ? 'blue'
-                              : job.status?.toLowerCase() === 'approved'
-                              ? 'green'
-                              : job.status?.toLowerCase() === 'rejected'
-                              ? 'red'
-                              : 'gray'
-                          }
-                          px={2}
-                          py={1}
-                          borderRadius="full"
-                          fontSize="sm"
-                          fontWeight="bold"
-                          variant="subtle"
-                          textTransform="uppercase"
-                        >
-                          {job.status ? job.status.toUpperCase() : ''}
-                        </Badge>
+                        {job.status && (
+                          <Badge
+                            colorScheme={(() => {
+                              const s = (job.status || '').trim().toLowerCase();
+                              if (s === 'applied') return 'blue';
+                              if (s === 'shortlisted') return 'green';
+                              if (s === 'rejected') return 'red';
+                              return 'gray';
+                            })()}
+                            px={2}
+                            py={1}
+                            borderRadius="full"
+                            fontSize="sm"
+                            fontWeight="bold"
+                            variant="subtle"
+                            textTransform="capitalize"
+                          >
+                            {job.status}
+                          </Badge>
+                        )}
                         <Text fontSize="xs" color="gray.500">
                           Applied {job.applied_at ? new Date(job.applied_at).toLocaleDateString() : ''}
                         </Text>
