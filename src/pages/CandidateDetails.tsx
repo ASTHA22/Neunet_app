@@ -63,6 +63,7 @@ interface CandidateData {
   skills: Skill[];
   jobsApplied?: JobApplied[];
   parsed_resume?: ResumeDetails;
+  github_analysis?: any; // Added for GitHub Analysis integration
 }
 
 interface ResumeDetails {
@@ -628,28 +629,58 @@ setCandidate(updatedCandidate);
               <Text color="gray.500">No ranking data available for this job.</Text>
             )}
           </Box>
-          {/* GitHub Statistics */}
-          <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
-            <Heading size="sm" mb={2}>GitHub Statistics</Heading>
-            {candidate.github ? (
-              <HStack spacing={8}>
-                <Box>
-                  <Text fontWeight="medium">Commits</Text>
-                  <Text color="gray.600">{candidate.github.totalCommits}</Text>
-                </Box>
-                <Box>
-                  <Text fontWeight="medium">Repositories</Text>
-                  <Text color="gray.600">{candidate.github.repositories}</Text>
-                </Box>
-                <Box>
-                  <Text fontWeight="medium">Pull Requests</Text>
-                  <Text color="gray.600">{candidate.github.pullRequests}</Text>
-                </Box>
-              </HStack>
-            ) : (
-              <Text color="gray.500">No GitHub data available.</Text>
-            )}
-          </Box>
+          {/* GitHub Analysis */}
+          {candidate.github_analysis && (
+            <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
+              <Heading size="sm" mb={2}>GitHub Analysis</Heading>
+              <VStack align="stretch" spacing={3}>
+                <HStack spacing={8}>
+                  <Box>
+                    <Text fontWeight="medium">Total Public Repositories</Text>
+                    <Text color="gray.600">{candidate.github_analysis.total_repositories ?? candidate.github_analysis.total_public_repos ?? 'N/A'}</Text>
+                  </Box>
+                  <Box>
+                    <Text fontWeight="medium">Total Commits</Text>
+                    <Text color="gray.600">{candidate.github_analysis.total_commits ?? 'N/A'}</Text>
+                  </Box>
+                </HStack>
+                {(candidate.github_analysis.repositories && candidate.github_analysis.repositories.length > 0) ? (
+                  <Box mt={2}>
+                    <Text fontWeight="medium" mb={1}>Top 5 Repositories</Text>
+                    <VStack align="stretch" spacing={2}>
+                      {candidate.github_analysis.repositories.slice(0, 5).map((repo: any, idx: number) => (
+                        <Box key={repo.name || idx} p={3} borderRadius="md" bg="gray.50">
+                          <HStack justify="space-between">
+                            <Box>
+                              <Text fontWeight="bold">{repo.name}</Text>
+                              {repo.html_url && (
+                                <Text fontSize="xs">
+                                  <a href={repo.html_url} target="_blank" rel="noopener noreferrer" style={{ color: '#805AD5' }}>
+                                    View on GitHub
+                                  </a>
+                                </Text>
+                              )}
+                            </Box>
+                            <Box textAlign="right">
+                              <Text fontSize="sm">Commits: <b>{repo.commit_count ?? repo.commits ?? 'N/A'}</b></Text>
+                              {repo.language && <Text fontSize="xs" color="gray.500">{repo.language}</Text>}
+                            </Box>
+                          </HStack>
+                          {repo.contribution_insights && (
+                            <Text fontSize="xs" color="gray.600" mt={1}>
+                              {repo.contribution_insights}
+                            </Text>
+                          )}
+                        </Box>
+                      ))}
+                    </VStack>
+                  </Box>
+                ) : (
+                  <Text color="gray.500">No top repositories found.</Text>
+                )}
+              </VStack>
+            </Box>
+          )}
           {/* Skills */}
           <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
             <Heading size="sm" mb={2}>Skills</Heading>
