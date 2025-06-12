@@ -22,6 +22,7 @@ import {
   Collapse
 } from '@chakra-ui/react'
 import { FiArrowLeft, FiDownload } from 'react-icons/fi'
+import { InfoOutlineIcon } from '@chakra-ui/icons'
 import { Link as RouterLink, useParams } from 'react-router-dom' // useParams for both jobId and candidateId
 import { BsGithub } from 'react-icons/bs'
 import { FaLinkedin } from 'react-icons/fa'
@@ -644,7 +645,10 @@ setCandidate(updatedCandidate);
           {/* GitHub Analysis */}
           {candidate.github_analysis && (
             <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
-              <Heading size="sm" mb={2}>GitHub Analysis</Heading>
+              <Heading size="sm" mb={2} display="flex" alignItems="center">
+  <Box as={BsGithub} mr={2} fontSize="xl" />
+  GitHub Analysis
+</Heading>
               <VStack align="stretch" spacing={3}>
                 <HStack spacing={8}>
                   <Box>
@@ -660,46 +664,89 @@ setCandidate(updatedCandidate);
                   <Box mt={2}>
                     <Text fontWeight="medium" mb={1}>Top 5 Repositories</Text>
                     <VStack align="stretch" spacing={2}>
-                      {candidate.github_analysis.repositories.slice(0, 5).map((repo: any, idx: number) => (
-                        <Box key={repo.name || idx} p={3} borderRadius="md" bg="gray.50">
-                          <HStack justify="space-between">
-                            <Box>
-                              <Text fontWeight="bold">{repo.name}</Text>
-                              {repo.html_url && (
-                                <Text fontSize="xs">
-                                  <a href={normalizeGithubLink(repo.html_url)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                                    View on GitHub
-                                  </a>
+                      {candidate.github_analysis.repositories.slice(0, 5).map((repo: any, idx: number) => {
+                        const languageColorMap: Record<string, string> = {
+                          'Python': '#3572A5', 'JavaScript': '#f1e05a', 'TypeScript': '#2b7489', 'Java': '#b07219', 'C++': '#f34b7d', 'C#': '#178600', 'Go': '#00ADD8', 'HTML': '#e34c26', 'CSS': '#563d7c', 'Jupyter Notebook': '#DA5B0B', 'Shell': '#89e051', 'Ruby': '#701516', 'PHP': '#4F5D95', 'Rust': '#dea584', 'Kotlin': '#A97BFF', 'Swift': '#ffac45', 'Dart': '#00B4AB', 'Scala': '#c22d40', 'Other': '#aaa'
+                        };
+                        const lang = repo.language || 'Other';
+                        const langColor = languageColorMap[lang] || languageColorMap['Other'];
+                        return (
+                          <Box
+                            key={repo.name || idx}
+                            p={4}
+                            borderRadius="lg"
+                            bg="white"
+                            boxShadow="sm"
+                            borderLeft="6px solid"
+                            borderLeftColor={langColor}
+                            _hover={{ boxShadow: 'md', transform: 'translateY(-2px)', transition: 'all 0.2s' }}
+                            transition="all 0.2s"
+                          >
+                            {/* Header row: repo name, GitHub icon, right-aligned tags */}
+                            <HStack mb={1} spacing={2} align="center" justify="space-between" w="100%">
+                              <HStack spacing={2} align="center">
+                                <Text as="a" href={normalizeGithubLink(repo.html_url)} target="_blank" rel="noopener noreferrer" fontWeight="bold" fontSize="md" _hover={{ color: 'purple.600', textDecoration: 'underline' }}>
+                                  {repo.name}
                                 </Text>
-                              )}
-                            </Box>
-                            <Box textAlign="right">
-                              <Text fontSize="sm">Commits: <b>{repo.commit_count ?? repo.commits ?? 'N/A'}</b></Text>
-                              {repo.language && <Text fontSize="xs" color="gray.500">{repo.language}</Text>}
-                            </Box>
-                          </HStack>
-                          {repo.contribution_insights && (
-                            <Box mt={1}>
-                              <Collapse startingHeight={32} in={expandedRepoIdx === idx} animateOpacity>
-                                <Text fontSize="xs" color="gray.600" whiteSpace="pre-line">
-                                  {repo.contribution_insights}
-                                </Text>
-                              </Collapse>
-                              {repo.contribution_insights.length > 100 && (
-                                <Button
-                                  size="xs"
-                                  variant="link"
-                                  colorScheme="purple"
-                                  onClick={() => setExpandedRepoIdx(expandedRepoIdx === idx ? null : idx)}
-                                  mt={1}
-                                >
-                                  {expandedRepoIdx === idx ? 'Show less' : 'Read more'}
-                                </Button>
-                              )}
-                            </Box>
-                          )}
-                        </Box>
-                      ))}
+                                {repo.html_url && (
+                                  <IconButton
+                                    as="a"
+                                    href={normalizeGithubLink(repo.html_url)}
+                                    aria-label="Open on GitHub"
+                                    icon={<BsGithub />}
+                                    size="sm"
+                                    variant="ghost"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    _hover={{ color: 'purple.500', bg: 'gray.100' }}
+                                  />
+                                )}
+                              </HStack>
+                              <HStack spacing={2} align="center">
+                                <Badge colorScheme="purple" px={2} py={1} borderRadius="full" fontSize="xs" display="flex" alignItems="center">
+                                  <Icon as={CheckIcon} boxSize={3} mr={1} />
+                                  {repo.commit_count ?? repo.commits ?? 'N/A'} Commits
+                                </Badge>
+                                {repo.language && (
+                                  <Badge px={2} py={1} borderRadius="full" fontSize="xs" bg={langColor} color="white">
+                                    {repo.language}
+                                  </Badge>
+                                )}
+                              </HStack>
+                            </HStack>
+                            {/* Contribution Insights */}
+                            {repo.contribution_insights && (
+                              <Box mt={2}>
+                                <HStack align="flex-start" spacing={2}>
+                                  <Icon as={InfoOutlineIcon} color="purple.400" mt={1} />
+                                  <Box flex="1">
+                                    <Collapse startingHeight={32} in={expandedRepoIdx === idx} animateOpacity>
+                                      <Text fontSize="sm" color="gray.700" whiteSpace="pre-line" position="relative">
+                                        {repo.contribution_insights}
+                                        {expandedRepoIdx !== idx && (
+                                          <Box position="absolute" bottom={0} left={0} right={0} h="18px" bgGradient="linear(to-t, white, transparent)" />
+                                        )}
+                                      </Text>
+                                    </Collapse>
+                                    {repo.contribution_insights.length > 100 && (
+                                      <Button
+                                        size="xs"
+                                        variant="link"
+                                        colorScheme="purple"
+                                        onClick={() => setExpandedRepoIdx(expandedRepoIdx === idx ? null : idx)}
+                                        mt={1}
+                                        aria-label={expandedRepoIdx === idx ? 'Show less' : 'Read more'}
+                                      >
+                                        {expandedRepoIdx === idx ? 'Show less' : 'Read more'}
+                                      </Button>
+                                    )}
+                                  </Box>
+                                </HStack>
+                              </Box>
+                            )}
+                          </Box>
+                        );
+                      })}
                     </VStack>
                   </Box>
                 ) : (
@@ -726,17 +773,17 @@ setCandidate(updatedCandidate);
           {/* Jobs Applied */}
           <Box bg="white" borderRadius="lg" boxShadow="md" p={6}>
             <Heading size="sm" mb={2}>Jobs Applied</Heading>
-            <VStack align="stretch" spacing={2}>
-              {sortedJobsApplied.length > 0 ? (
-                sortedJobsApplied.map((job, idx) => (
-                  <Flex key={idx} p={3} borderRadius="md" bg="gray.50" align="center" justify="space-between">
-                    <Box>
-                      <Text fontWeight="medium">{job.title}</Text>
-                      <Text fontSize="xs" color="gray.500" mt={0.5}>
-                        Job ID: {job.job_id}
-                      </Text>
-                      <HStack spacing={2} mt={1}>
-                        {job.status && (
+            <VStack align="stretch" spacing={4}>
+              {sortedJobsApplied && sortedJobsApplied.length > 0 ? (
+                sortedJobsApplied.map((job: any, idx: number) => (
+                  <Flex key={idx} p={0} borderRadius="lg" bg="transparent">
+                    <Flex w="100%" bg="gray.50" borderRadius="lg" p={5} align="center" boxShadow="xs">
+                      <Box flex="2">
+                        <HStack spacing={3} align="center" mb={1}>
+                          <Text fontSize="md" fontWeight="bold">{job.title}</Text>
+                          <Text fontSize="sm" color="gray.500">Job ID: {job.job_id}</Text>
+                        </HStack>
+                        <HStack spacing={2} mt={2}>
                           <Badge
                             colorScheme={(() => {
                               const s = (job.status || '').trim().toLowerCase();
@@ -745,73 +792,72 @@ setCandidate(updatedCandidate);
                               if (s === 'rejected') return 'red';
                               return 'gray';
                             })()}
-                            px={2}
+                            borderRadius="md"
+                            px={3}
                             py={1}
-                            borderRadius="full"
                             fontSize="sm"
                             fontWeight="bold"
                             variant="subtle"
-                            textTransform="capitalize"
                           >
-                            {job.status}
+                            {job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1) : ''}
                           </Badge>
-                        )}
-                        <Text fontSize="xs" color="gray.500">
-                          Applied {job.applied_at ? new Date(job.applied_at).toLocaleDateString() : ''}
-                        </Text>
-                      </HStack>
-                    </Box>
-                    <HStack spacing={4} align="center">
-                      <Box textAlign="center" minW="56px">
-                        <Text fontSize="lg" fontWeight="bold" color="purple.600" mb={0.5}>
-                          {typeof job.score === 'number' ? Math.round(job.score * (job.score <= 1 ? 100 : 1)) : ''}
-                        </Text>
-                        <Text fontSize="xs" color="gray.500">Score</Text>
+                          <Text fontSize="sm" color="gray.500">
+                            Applied {job.applied_at ? new Date(job.applied_at).toLocaleDateString() : ''}
+                          </Text>
+                        </HStack>
                       </Box>
-                      <Button size="sm" variant="outline" colorScheme="purple" onClick={() => navigate(`/job-candidates/${job.job_id}?tab=details`)}>
-                        JD
-                      </Button>
-                      {job.resume_blob_name && (
-                        <IconButton
-                          aria-label="Download Resume"
-                          icon={<FiDownload />}
-                          size="sm"
-                          variant="ghost"
-                          onClick={async () => {
-                            const email = candidate.email || candidate.parsed_resume?.email;
-                            if (!email) {
-                              alert('Resume download unavailable: missing candidate email.');
-                              return;
-                            }
-                            try {
-                              // getCandidateResume returns AxiosResponse<any>
-                              const response = await getCandidateResume(
-                                job.job_id,
-                                email,
-                                { responseType: 'blob' }
-                              );
-                              const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
-                              const url = window.URL.createObjectURL(blob);
-                              const link = document.createElement('a');
-                              const disposition = response.headers['content-disposition'];
-                              let filename = 'resume.pdf';
-                              if (disposition && disposition.indexOf('filename=') !== -1) {
-                                filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+                      <Flex flex="1" align="center" justify="flex-end" gap={6}>
+                        <Box textAlign="center" minW="56px" mr={2}>
+                          <Text fontSize="xl" fontWeight="bold" color="purple.600" mb={0.5}>
+                            {typeof job.score === 'number' ? Math.round(job.score * (job.score <= 1 ? 100 : 1)) : ''}
+                          </Text>
+                          <Text fontSize="xs" color="gray.500">Score</Text>
+                        </Box>
+                        <Button size="sm" variant="outline" colorScheme="purple" borderRadius="md" px={4} onClick={() => navigate(`/job-candidates/${job.job_id}?tab=details`)}>
+                          JD
+                        </Button>
+                        {job.resume_blob_name && (
+                          <IconButton
+                            aria-label="Download Resume"
+                            icon={<FiDownload />}
+                            onClick={async () => {
+                              const email = candidate.email || candidate.parsed_resume?.email;
+                              if (!email) {
+                                alert('Resume download unavailable: missing candidate email.');
+                                return;
                               }
-                              link.href = url;
-                              link.setAttribute('download', filename);
-                              document.body.appendChild(link);
-                              link.click();
-                              link.remove();
-                              window.URL.revokeObjectURL(url);
-                            } catch (err) {
-                              alert('Failed to download resume file.');
-                            }
-                          }}
-                          _hover={{ color: 'purple.500', bg: 'gray.100' }}
-                        />
-                      )}
-                    </HStack>
+                              try {
+                                // getCandidateResume returns AxiosResponse<any>
+                                const response = await getCandidateResume(
+                                  job.job_id,
+                                  email,
+                                  { responseType: 'blob' }
+                                );
+                                const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                const disposition = response.headers['content-disposition'];
+                                let filename = 'resume.pdf';
+                                if (disposition && disposition.indexOf('filename=') !== -1) {
+                                  filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+                                }
+                                link.href = url;
+                                link.setAttribute('download', filename);
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                window.URL.revokeObjectURL(url);
+                              } catch (err) {
+                                alert('Failed to download resume file.');
+                              }
+                            }}
+                            _hover={{ color: 'purple.500', bg: 'gray.100' }}
+                            size="sm"
+                            variant="ghost"
+                          />
+                        )}
+                      </Flex>
+                    </Flex>
                   </Flex>
                 ))
               ) : (
