@@ -77,6 +77,13 @@ const CandidateCard = ({ jobId, candidate, reloadCandidates }: CandidateCardProp
 
   // Extract links from resume (support both camelCase and space keys)
   let github = '';
+function normalizeGithubLink(link: string): string {
+  if (!link) return '';
+  if (link.startsWith('http://') || link.startsWith('https://')) return link;
+  // Remove any accidental leading slashes or spaces
+  const cleaned = link.replace(/^\/+/,'').trim();
+  return `https://${cleaned}`;
+}
   let linkedin = '';
   let resumeObj = resume;
   if (typeof resume === 'string') {
@@ -188,7 +195,7 @@ const CandidateCard = ({ jobId, candidate, reloadCandidates }: CandidateCardProp
             <Text fontSize="xs" color="gray.500">Score</Text>
           </Box>
           {github && (
-            <a href={github} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+            <a href={normalizeGithubLink(github)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
               <IconButton
                 aria-label="GitHub"
                 icon={<Icon as={FiGithub} />}

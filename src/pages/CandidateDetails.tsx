@@ -18,7 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
-  Button as ChakraButton
+  Button as ChakraButton,
+  Collapse
 } from '@chakra-ui/react'
 import { FiArrowLeft, FiDownload } from 'react-icons/fi'
 import { Link as RouterLink, useParams } from 'react-router-dom' // useParams for both jobId and candidateId
@@ -74,6 +75,14 @@ interface ResumeDetails {
   [key: string]: any;
 }
 
+function normalizeGithubLink(link: string): string {
+  if (!link) return '';
+  if (link.startsWith('http://') || link.startsWith('https://')) return link;
+  // Remove any accidental leading slashes or spaces
+  const cleaned = link.replace(/^\/+/,'').trim();
+  return `https://${cleaned}`;
+}
+
 import React from 'react';
 import { useEffect, useState } from 'react';
 
@@ -97,6 +106,9 @@ const CandidateDetails: React.FC = () => {
   const cancelRef = React.useRef<HTMLButtonElement>(null);
   const [selectedJobEvalStatus, setSelectedJobEvalStatus] = React.useState<string | undefined>(undefined);
   const toast = useToast();
+
+  // State for expanding/collapsing contribution_insights
+  const [expandedRepoIdx, setExpandedRepoIdx] = useState<number | null>(null);
 
   const { candidateId, jobId: jobIdFromParams } = useParams<{ candidateId: string; jobId?: string }>();
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
@@ -376,7 +388,7 @@ setCandidate(updatedCandidate);
                   {(candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github) && (
                     <IconButton
                       as="a"
-                      href={candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github}
+                      href={normalizeGithubLink(candidate.parsed_resume?.github || candidate.parsed_resume?.links?.github)}
                       aria-label="GitHub"
                       icon={<BsGithub />}
                       target="_blank"
@@ -655,7 +667,7 @@ setCandidate(updatedCandidate);
                               <Text fontWeight="bold">{repo.name}</Text>
                               {repo.html_url && (
                                 <Text fontSize="xs">
-                                  <a href={repo.html_url} target="_blank" rel="noopener noreferrer" style={{ color: '#805AD5' }}>
+                                  <a href={normalizeGithubLink(repo.html_url)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
                                     View on GitHub
                                   </a>
                                 </Text>
@@ -667,9 +679,24 @@ setCandidate(updatedCandidate);
                             </Box>
                           </HStack>
                           {repo.contribution_insights && (
-                            <Text fontSize="xs" color="gray.600" mt={1}>
-                              {repo.contribution_insights}
-                            </Text>
+                            <Box mt={1}>
+                              <Collapse startingHeight={32} in={expandedRepoIdx === idx} animateOpacity>
+                                <Text fontSize="xs" color="gray.600" whiteSpace="pre-line">
+                                  {repo.contribution_insights}
+                                </Text>
+                              </Collapse>
+                              {repo.contribution_insights.length > 100 && (
+                                <Button
+                                  size="xs"
+                                  variant="link"
+                                  colorScheme="purple"
+                                  onClick={() => setExpandedRepoIdx(expandedRepoIdx === idx ? null : idx)}
+                                  mt={1}
+                                >
+                                  {expandedRepoIdx === idx ? 'Show less' : 'Read more'}
+                                </Button>
+                              )}
+                            </Box>
                           )}
                         </Box>
                       ))}
