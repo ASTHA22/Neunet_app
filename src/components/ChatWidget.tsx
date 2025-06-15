@@ -53,7 +53,8 @@ const Sparkle = ({ delay = 0 }) => (
   />
 )
 
-export const ChatWidget = ({ onAIGeneratedJob }: { onAIGeneratedJob?: (jobFields: Partial<JobFormData>) => void }) => {
+export const ChatWidget = ({ onAIGeneratedJob, candidateId }: { onAIGeneratedJob?: (jobFields: Partial<JobFormData>) => void, candidateId?: string }) => {
+  console.log('ChatWidget candidateId:', candidateId);
   const { isOpen, onOpen, onClose } = useDisclosure()
 
   return (
@@ -86,7 +87,7 @@ export const ChatWidget = ({ onAIGeneratedJob }: { onAIGeneratedJob?: (jobFields
           </Box>
         </Box>
       </Box>
-      <Chat isOpen={isOpen} onClose={onClose} onAIGeneratedJob={onAIGeneratedJob} />
+      <Chat isOpen={isOpen} onClose={onClose} onAIGeneratedJob={onAIGeneratedJob} candidateId={candidateId} />
     </Box>
   )
 }

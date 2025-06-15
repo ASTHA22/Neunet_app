@@ -32,6 +32,7 @@ import { AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, Ale
 import { Job } from '../types/job'
 
 import { ResumeData } from '../types/resume';
+import { ChatWidget } from '../components/ChatWidget';
 
 interface Candidate {
   candidate_id?: string; // Unique candidate identifier
@@ -328,6 +329,7 @@ function normalizeGithubLink(link: string): string {
     </Box>
   );
 }
+
 
 const StatBox = ({ label, value }: { label: string; value: string | number }) => (
   <Box 

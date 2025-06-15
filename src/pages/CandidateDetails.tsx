@@ -1,3 +1,4 @@
+import { ChatWidget } from '../components/ChatWidget';
 import {
   Box,
   Button,
@@ -860,14 +861,17 @@ setCandidate(updatedCandidate);
                     </Flex>
                   </Flex>
                 ))
-              ) : (
-                <Text color="gray.500">No jobs applied.</Text>
-              )}
-            </VStack>
-          </Box>
-        </VStack>
-      </Flex>
-    </Box>
+                ) : (
+                  <Text color="gray.500">No jobs applied.</Text>
+                )}
+              </VStack>
+            </Box>
+          </VStack>
+        </Flex>
+        {/* Floating Chat Widget for this page */}
+        {console.log('CandidateDetails candidateId:', candidateId)}
+        <ChatWidget candidateId={candidateId} />
+      </Box>
   );
 };
 

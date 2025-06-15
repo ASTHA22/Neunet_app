@@ -9,6 +9,19 @@ import {
   CloseButton,
   Button,
   Icon,
+  Avatar,
+  Badge,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  FormControl,
+  FormLabel,
+  useToast
 } from '@chakra-ui/react'
 import { FiSend, FiPlus, FiFileText } from 'react-icons/fi'
 import { RiDashboardLine } from 'react-icons/ri'
@@ -16,8 +29,89 @@ import { BsPersonLinesFill } from 'react-icons/bs'
 import { HiQuestionMarkCircle } from 'react-icons/hi'
 import { useLocation, Link as RouterLink } from 'react-router-dom'
 import { AnimatedLogo } from './AnimatedLogo'
-import { generateJobDescription } from '../services/api';
+import { generateJobDescription, getCandidateById, getJobCandidates, sendEmail } from '../services/api';
 import { JobFormData } from '../pages/CreateJob';
+import { useParams } from 'react-router-dom';
+
+// Helper to render candidate cards or fallback to plain text
+function renderChatMessage(textOrObj: string | any) {
+  // If it's a string, render as plain text
+  if (typeof textOrObj === 'string') {
+    return <Text whiteSpace="pre-line">{textOrObj}</Text>;
+  }
+  // If it's an object with type topCandidates
+  if (textOrObj && typeof textOrObj === 'object' && textOrObj.type === 'topCandidates' && Array.isArray(textOrObj.candidates)) {
+    const candidates = textOrObj.candidates;
+    return (
+      <VStack align="stretch" spacing={3}>
+        <Text fontWeight="bold" mb={2}>Top Candidates for this Job:</Text>
+        {candidates.map((c: any) => (
+          <HStack key={c.idx + c.email} p={3} bg="gray.100" borderRadius="md" boxShadow="xs">
+            <Avatar name={c.name} size="sm" />
+            <Box flex="1">
+              <Text fontWeight="semibold">{c.name}</Text>
+              {c.email && <Text fontSize="sm" color="gray.600">{c.email}</Text>}
+            </Box>
+            <Badge colorScheme="purple">{c.ranking}</Badge>
+            <Badge colorScheme={c.status === 'shortlisted' ? 'green' : c.status === 'applied' ? 'blue' : c.status === 'rejected' ? 'red' : 'gray'}>
+              {c.status || 'N/A'}
+            </Badge>
+          </HStack>
+        ))}
+      </VStack>
+    );
+  }
+  // If it's an object with type jobs_applied_cards
+  if (textOrObj && typeof textOrObj === 'object' && textOrObj.type === 'jobs_applied_cards' && Array.isArray(textOrObj.jobs)) {
+    const jobs = textOrObj.jobs;
+    return (
+      <VStack align="stretch" spacing={3} mt={2} mb={2}>
+        {jobs.map((job: any, idx: number) => (
+          <Box key={job.job_id || idx} borderWidth="1px" borderRadius="lg" p={3} bg="white" boxShadow="xs">
+            <HStack justify="space-between" mb={1}>
+              <Text fontWeight="bold" fontSize="md">{job.title}</Text>
+              <Badge colorScheme={job.status === 'Shortlisted' ? 'green' : job.status === 'Rejected' ? 'red' : job.status === 'Applied' ? 'purple' : 'gray'}>{job.status}</Badge>
+            </HStack>
+            <Text fontSize="sm" color="gray.500">Job ID: {job.job_id}</Text>
+            {job.appliedAt && <Text fontSize="xs" color="gray.400">Applied: {job.appliedAt}</Text>}
+          </Box>
+        ))}
+      </VStack>
+    );
+  }
+  // Fallback for unknown object types
+  return <Text color="red.400">[Unsupported message format]</Text>;
+}
+
+
+// --- Context-aware chat quick actions ---
+const ChatQuickActions = ({ location, onAction }: { location: any, onAction: (action: string) => void }) => {
+  // Show candidate-specific actions if on any candidate details route
+  const isCandidatePage =
+    /\/candidate(\W|$)/.test(location.pathname) ||
+    /\/candidate-details(\W|$)/.test(location.pathname) ||
+    /\/job-candidates\/[^/]+\/candidate\//.test(location.pathname);
+
+  if (isCandidatePage) {
+    return (
+      <VStack spacing={2} mb={4} align="stretch">
+        <Button colorScheme="purple" variant="outline" onClick={() => onAction('see_jobs_applied')}>See jobs applied</Button>
+        <Button colorScheme="purple" variant="outline" onClick={() => onAction('send_email')}>Send email</Button>
+      </VStack>
+    );
+  }
+
+  if (location.pathname.includes('/job-candidates')) {
+    return (
+      <VStack spacing={2} mb={4} align="stretch">
+        <Button colorScheme="purple" variant="outline" onClick={() => onAction('top_20')}>Show top 20 candidates</Button>
+        <Button colorScheme="purple" variant="outline" onClick={() => onAction('top_10_percent')}>Show top 10% candidates</Button>
+      </VStack>
+    );
+  }
+  return null;
+};
+
 
 interface Message {
   text: string;
@@ -63,11 +157,136 @@ const ChatInput = ({ message, setMessage, handleSend, handleKeyPress }: any) => 
   </Box>
 );
 
-export const Chat = ({ isOpen, onClose, onAIGeneratedJob }: ChatProps) => {
+interface ChatProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAIGeneratedJob?: (jobFields: Partial<JobFormData>) => void;
+  candidateId?: string;
+}
+
+export const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp }: ChatProps) => {
+  console.log('Chat candidateIdProp:', candidateIdProp);
+  const params = useParams<{ jobId?: string; candidateId?: string }>();
+  const location = useLocation();
+  // Use prop if provided, otherwise fallback to params
+  const candidateId = candidateIdProp || params.candidateId;
+  let jobId = params.jobId;
+  console.log('Chat candidateId (used):', candidateId);
+  // Fallback: try to extract jobId from pathname if not available in params
+  if (!jobId && location.pathname.includes('/job-candidates/')) {
+    const match = location.pathname.match(/\/job-candidates\/(\w+)/);
+    if (match && match[1]) {
+      jobId = match[1];
+    }
+  }
+
+  // Helper: Open email modal with candidate's email
+  const handleOpenEmailModal = async () => {
+    if (!candidateId) {
+      toast({ title: 'No candidate selected.', status: 'error' });
+      return;
+    }
+    try {
+      const candidate = await getCandidateById(candidateId);
+      setEmailTo(candidate.email || '');
+      setEmailSubject('');
+      setEmailBody('');
+      openEmailModal();
+    } catch (err) {
+      toast({ title: 'Could not fetch candidate email.', status: 'error' });
+    }
+  };
+
+  // Helper: Send email
+  const handleSendEmail = async () => {
+    setIsSendingEmail(true);
+    try {
+      const result = await sendEmail({ to: [emailTo], subject: emailSubject, body: emailBody });
+      if (result.success) {
+        setMessages(prev => [...prev, { text: `Email sent to ${emailTo}.`, sender: 'assistant' }]);
+        toast({ title: 'Email sent!', status: 'success' });
+        closeEmailModal();
+      } else {
+        setMessages(prev => [...prev, { text: `Failed to send email: ${result.error}`, sender: 'assistant' }]);
+        toast({ title: 'Failed to send email', description: result.error, status: 'error' });
+      }
+    } catch (err: any) {
+      setMessages(prev => [...prev, { text: `Failed to send email: ${err?.message || err}`, sender: 'assistant' }]);
+      toast({ title: 'Failed to send email', description: err?.message || String(err), status: 'error' });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  // Helper: Fetch jobs applied for candidate
+  const fetchJobsApplied = async (cid: string) => {
+    if (!cid) return 'No candidate selected.';
+    try {
+      const candidate = await getCandidateById(cid);
+      console.log('Fetched candidate:', candidate);
+      const jobs = candidate.jobsApplied || candidate.jobs_applied || [];
+      if (!candidate || jobs.length === 0) {
+        return 'No jobs applied.';
+      }
+      // Render jobs as styled cards using Chakra UI
+      return {
+        type: 'jobs_applied_cards',
+        jobs: jobs.map((job: any, idx: number) => ({
+          idx,
+          title: job.title || 'Untitled',
+          job_id: job.job_id,
+          status: job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1) : 'Unknown',
+          appliedAt: job.applied_at ? new Date(job.applied_at).toLocaleDateString() : '',
+        }))
+      };
+    } catch (err) {
+      return 'Failed to fetch jobs applied.';
+    }
+  };
+
+  // Helper: Fetch top candidates for a job
+  const fetchTopCandidates = async (jid: string, count?: number, percent?: number) => {
+    try {
+      const candidates = await getJobCandidates(jid);
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        return 'No candidates found for this job.';
+      }
+      // Sort by ranking/score (descending)
+      const sorted = [...candidates].sort((a: any, b: any) => (b.ranking ?? b.score ?? 0) - (a.ranking ?? a.score ?? 0));
+      let top: any[] = sorted;
+      if (count) {
+        top = sorted.slice(0, count);
+      } else if (percent) {
+        top = sorted.slice(0, Math.max(1, Math.floor(sorted.length * percent)));
+      }
+      // Format
+      // Instead of returning plain text, return a special marker with JSON string for rendering
+      const formattedCandidates = top.map((c, idx) => ({
+        idx: idx + 1,
+        name: c.name || c.email || 'Unknown',
+        email: c.email || '',
+        ranking: c.ranking ?? c.score ?? 0,
+        status: c.status || '',
+      }));
+      return JSON.stringify({ type: 'topCandidates', candidates: formattedCandidates });
+    } catch (err) {
+      return 'Failed to fetch candidates for this job.';
+    }
+  };
+
+
   console.log('[CHAT] Chat mounted');
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const location = useLocation();
+
+  // --- Email Modal State ---
+  const { isOpen: isEmailModalOpen, onOpen: openEmailModal, onClose: closeEmailModal } = useDisclosure();
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const toast = useToast();
+  // location already declared above, reuse here
   const isHomePage = location.pathname === '/dashboard';
   const isCreateJobPage = location.pathname === '/create-job';
   const showHelpOnly = location.pathname.includes('/job-listings') || 
@@ -86,7 +305,50 @@ export const Chat = ({ isOpen, onClose, onAIGeneratedJob }: ChatProps) => {
     }
   }, [messages]);
 
-  // Conversational flow handler
+  // --- Quick Action Handler ---
+  const handleQuickAction = (action: string) => {
+    if (action === 'top_20') {
+      setMessages(prev => [...prev, { text: 'Showing top 20 candidates...', sender: 'assistant' }]);
+      if (jobId) {
+        fetchTopCandidates(jobId, 20).then(result => {
+          setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+        });
+      } else {
+        setMessages(prev => [...prev, { text: 'No job in context.', sender: 'assistant' }]);
+      }
+      return;
+    }
+    if (action === 'top_10_percent') {
+      setMessages(prev => [...prev, { text: 'Showing top 10% candidates...', sender: 'assistant' }]);
+      if (jobId) {
+        fetchTopCandidates(jobId, undefined, 0.1).then(result => {
+          setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+        });
+      } else {
+        setMessages(prev => [...prev, { text: 'No job in context.', sender: 'assistant' }]);
+      }
+      return;
+    }
+    if (action === 'see_jobs_applied') {
+      console.log('[QuickAction] candidateId at click:', candidateId);
+      if (!candidateId) {
+        setMessages(prev => [...prev, { text: 'No candidate in context (handler). Please reload or check route.', sender: 'assistant' }]);
+        return;
+      }
+      setMessages(prev => [...prev, { text: 'Fetching jobs applied by this candidate...', sender: 'assistant' }]);
+      fetchJobsApplied(candidateId).then((result) => {
+        setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+      });
+      return;
+    }
+    if (action === 'send_email') {
+      setMessages(prev => [...prev, { text: 'Opening email composer for this candidate...', sender: 'assistant' }]);
+      handleOpenEmailModal();
+      return;
+    }
+  };
+
+// Conversational flow handler
   const handleAIGenerateClick = () => {
     setAiGenState('awaiting_title');
     setMessages(prev => [...prev, { text: 'Let\'s generate a job description! What is the job title?', sender: 'assistant' }]);
@@ -228,6 +490,61 @@ export const Chat = ({ isOpen, onClose, onAIGeneratedJob }: ChatProps) => {
         }
         return;
       }
+      // --- Context-aware user queries ---
+      const msg = message.trim().toLowerCase();
+      // Support 'show top candidate', 'show top X candidate(s)'
+      const topXMatch = msg.match(/top (\d+) candidates?/);
+      if (topXMatch) {
+        const count = parseInt(topXMatch[1], 10);
+        setMessages(prev => [...prev, { text: message, sender: 'user' }, { text: `Showing top ${count} candidate${count === 1 ? '' : 's'}...`, sender: 'assistant' }]);
+        if (jobId) {
+          fetchTopCandidates(jobId, count).then(result => {
+            setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+          });
+        } else {
+          setMessages(prev => [...prev, { text: 'No job in context.', sender: 'assistant' }]);
+        }
+        setMessage('');
+        return;
+      }
+      // Support 'show top candidate' (no number, singular)
+      if (msg.includes('top candidate')) {
+        setMessages(prev => [...prev, { text: message, sender: 'user' }, { text: 'Showing top candidate...', sender: 'assistant' }]);
+        if (jobId) {
+          fetchTopCandidates(jobId, 1).then(result => {
+            setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+          });
+        } else {
+          setMessages(prev => [...prev, { text: 'No job in context.', sender: 'assistant' }]);
+        }
+        setMessage('');
+        return;
+      }
+      // Support 'show top X% candidate(s)'
+      const topPercentMatch = msg.match(/top (\d+)% candidates?/);
+      if (topPercentMatch) {
+        const percent = parseInt(topPercentMatch[1], 10);
+        setMessages(prev => [...prev, { text: message, sender: 'user' }, { text: `Showing top ${percent}% candidate${percent === 1 ? '' : 's'}...`, sender: 'assistant' }]);
+        if (jobId) {
+          fetchTopCandidates(jobId, undefined, percent / 100).then(result => {
+            setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+          });
+        } else if (candidateId) {
+          fetchJobsApplied(candidateId).then((result) => {
+            setMessages(prev => [...prev, { text: result, sender: 'assistant' }]);
+          });
+        } else {
+          setMessages(prev => [...prev, { text: 'No candidate in context.', sender: 'assistant' }]);
+        }
+        setMessage('');
+        return;
+      }
+      if (msg.includes('send email')) {
+        setMessages(prev => [...prev, { text: message, sender: 'user' }, { text: 'Opening email composer for this candidate...', sender: 'assistant' }]);
+        handleOpenEmailModal();
+        setMessage('');
+        return;
+      }
       // Default: just add message to chat
       setMessages([...messages, { text: message, sender: 'user' }]);
       setMessage('');
@@ -282,210 +599,98 @@ export const Chat = ({ isOpen, onClose, onAIGeneratedJob }: ChatProps) => {
 
       {/* Content Area */}
       <Box flex={1} overflowY="auto" display="flex" flexDirection="column" alignItems="center">
-        {/* Buttons and chat both visible on /create-job */}
-        {location.pathname === '/create-job' && (
+        {/* On /create-job, show AI button, else context-aware quick actions */}
+        {isCreateJobPage ? (
+          <VStack spacing={2} mb={4} align="stretch">
+            <Button colorScheme="purple" variant="outline" width="100%" onClick={handleAIGenerateClick}>
+              Generate with AI
+            </Button>
+          </VStack>
+        ) : (
+          <ChatQuickActions location={location} onAction={handleQuickAction} />
+        )}
+        {/* Chat conversation area */}
+        <VStack spacing={4} width="200px">
           <>
-            <VStack spacing={3} width="200px" py={4}>
-              <Button
-                variant="outline"
-                width="100%"
-                height="44px"
-                leftIcon={<Icon as={FiFileText} boxSize={5} color="#9C6CFE" />}
-                justifyContent="flex-start"
-                fontWeight="normal"
-                borderColor="gray.200"
-                _hover={{ bg: 'gray.50' }}
-              >
-                Select template
-              </Button>
-              <Button
-                variant="outline"
-                width="100%"
-                height="44px"
-                leftIcon={<Icon as={HiQuestionMarkCircle} boxSize={5} color="#F97316" />}
-                justifyContent="flex-start"
-                fontWeight="normal"
-                borderColor="gray.200"
-                _hover={{ bg: 'gray.50' }}
-              >
-                Help
-              </Button>
-              <Button
-                variant="solid"
-                width="100%"
-                height="44px"
-                leftIcon={<Icon as={FiSend} boxSize={5} color="white" />}
-                justifyContent="flex-start"
-                fontWeight="bold"
-                color="white"
-                bg="#9C6CFE"
-                _hover={{ bg: '#8A5EE3' }}
-                onClick={handleAIGenerateClick}
-              >
-                Generate with AI
-              </Button>
-            </VStack>
-            {/* Chat conversation area */}
-            <VStack spacing={4} width="200px">
-              {messages.map((msg, index) => (
-                <Box
-                  key={index}
-                  bg={msg.sender === 'user' ? '#8A5EE3' : '#F7F7F7'}
-                  color={msg.sender === 'user' ? 'white' : 'black'}
-                  py={2}
-                  px={4}
-                  borderRadius="lg"
-                  alignSelf={msg.sender === 'user' ? 'flex-end' : 'flex-start'}
-                  maxW="80%"
-                >
-                  <Text>{msg.text}</Text>
+            {messages.map((msg, idx) => {
+              let parsed = msg.text;
+              if (typeof parsed === 'string' && parsed.startsWith('{') && parsed.endsWith('}')) {
+                try {
+                  parsed = JSON.parse(parsed);
+                } catch {}
+              }
+              return (
+                <Box key={idx} alignSelf={msg.sender === 'user' ? 'flex-end' : 'flex-start'}>
+                  {renderChatMessage(parsed)}
                 </Box>
-              ))}
-              <div ref={chatBottomRef} />
-            </VStack>
+              );
+            })}
+            <div ref={chatBottomRef} />
           </>
-        )}
-        {/* Job Listings, Candidates, Settings: Select template + Help */}
-        {(location.pathname.includes('/job-listings') || location.pathname.includes('/job-candidates') || location.pathname === '/settings' || location.pathname === '/jobs') && (
-          <VStack spacing={3} width="200px" py={4}>
-            <Button
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={FiFileText} boxSize={5} color="#9C6CFE" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Select template
-            </Button>
-            <Button
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={HiQuestionMarkCircle} boxSize={5} color="#F97316" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Help
-            </Button>
-          </VStack>
-        )}
-        {/* Other routes */}
-        {isHomePage && (
-          <VStack spacing={3} width="200px" py={4}>
-            <Button
-              as={RouterLink}
-              to="/dashboard"
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={RiDashboardLine} boxSize={5} color="#9C6CFE" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Dashboard
-            </Button>
-            <Button
-              as={RouterLink}
-              to="/create-job"
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={FiPlus} boxSize={5} color="#9C6CFE" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Create a job
-            </Button>
-            <Button
-              as={RouterLink}
-              to="/job-listings"
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={BsPersonLinesFill} boxSize={5} color="#9C6CFE" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Job listings
-            </Button>
-            <Button
-              as={RouterLink}
-              to="/help"
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={HiQuestionMarkCircle} boxSize={5} color="#F97316" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Help
-            </Button>
-          </VStack>
-        )}
-        {showHelpOnly && !isCreateJobPage && (
-          <VStack spacing={3} width="200px" py={4}>
-            <Button
-              variant="outline"
-              width="100%"
-              height="44px"
-              leftIcon={<Icon as={HiQuestionMarkCircle} boxSize={5} color="#F97316" />}
-              justifyContent="flex-start"
-              fontWeight="normal"
-              borderColor="gray.200"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Help
-            </Button>
-          </VStack>
-        )}
+        </VStack>
+
+        {/* Email Compose Modal */}
+        <Modal isOpen={isEmailModalOpen} onClose={closeEmailModal} isCentered size="lg">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Send Email to Candidate</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={4}>
+              <FormControl mb={3} isDisabled>
+                <FormLabel>To</FormLabel>
+                <Input value={emailTo} isReadOnly />
+              </FormControl>
+              <FormControl mb={3} isRequired>
+                <FormLabel>Subject</FormLabel>
+                <Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject" />
+              </FormControl>
+              <FormControl mb={3} isRequired>
+                <FormLabel>Body</FormLabel>
+                <Input as="textarea" rows={5} value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="Write your message here..." />
+              </FormControl>
+            </ModalBody>
+            <ModalFooter>
+              <Button colorScheme="purple" mr={3} onClick={handleSendEmail} isLoading={isSendingEmail} isDisabled={!emailSubject || !emailBody}>
+                Send Email
+              </Button>
+              <Button onClick={closeEmailModal} variant="ghost">Cancel</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </Box>
 
       {/* Input Area */}
-      {(location.pathname === '/chat' || location.pathname === '/create-job') && (
-        <Box p={4} borderTop="1px" borderColor="gray.100">
-          <HStack spacing={2}>
-            <Input
-              placeholder="Message AI Assistant..."
-              bg="gray.50"
-              border="none"
-              size="md"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              _focus={{ 
-                bg: 'white',
-                ring: 1,
-                ringColor: '#9C6CFE'
-              }}
-              _placeholder={{
-                color: 'gray.400'
-              }}
-            />
-            <IconButton
-              aria-label="Send message"
-              icon={<FiSend />}
-              onClick={handleSend}
-              bg="#9C6CFE"
-              color="white"
-              size="md"
-              _hover={{ bg: '#8A5EE3' }}
-            />
-          </HStack>
-        </Box>
-      )}
+      <Box p={4} borderTop="1px" borderColor="gray.100">
+        <HStack spacing={2}>
+          <Input
+            placeholder="Message AI Assistant..."
+            bg="gray.50"
+            border="none"
+            size="md"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            _focus={{ 
+              bg: 'white',
+              ring: 1,
+              ringColor: '#9C6CFE'
+            }}
+            _placeholder={{
+              color: 'gray.400'
+            }}
+          />
+          <IconButton
+            aria-label="Send message"
+            icon={<FiSend />}
+            onClick={handleSend}
+            bg="#9C6CFE"
+            color="white"
+            size="md"
+            _hover={{ bg: '#8A5EE3' }}
+          />
+        </HStack>
+      </Box>
+
     </Box>
   );
 };

@@ -130,6 +130,16 @@ export const applyForJob = async (jobId: string, application: any) => {
   }
 };
 
+export const sendEmail = async ({ to, subject, body }: { to: string[]; subject: string; body: string }) => {
+  try {
+    const response = await apiClient.post('/api/send-email', { to, subject, body });
+    return response.data;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+};
+
 export const generateJobDescription = async (jobData: Partial<Job>) => {
   try {
     const response = await apiClient.post('/api/generate-job-description', jobData);

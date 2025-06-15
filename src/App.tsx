@@ -64,10 +64,16 @@ function App() {
           <Route path="/resume-parser" element={<ResumeParser />} />
         </Routes>
       </Box>
+      {/* Only show global ChatWidget if not on candidate details pages */}
       {!isLoginPage && !isChatPage && (
-        location.pathname === '/create-job'
-          ? <ChatWidget onAIGeneratedJob={handleAIGeneratedJob} />
-          : <ChatWidget />
+        location.pathname === '/create-job' ? (
+          <ChatWidget onAIGeneratedJob={handleAIGeneratedJob} />
+        ) : (
+          // Hide ChatWidget on candidate details pages
+          !/^\/job-candidates\/[^/]+\/candidate\/[^/]+$/.test(location.pathname) &&
+          !/^\/candidates\/[^/]+$/.test(location.pathname) &&
+          <ChatWidget />
+        )
       )}
     </Box>
   )
