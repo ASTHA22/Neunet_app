@@ -1,4 +1,3 @@
-import { ChatWidget } from '../components/ChatWidget';
 import {
   Box,
   Button,
@@ -99,6 +98,7 @@ function normalizeRanking(ranking: number): number {
 }
 import { getCandidateById, getCandidateResume, updateCandidateStatus } from '../services/api';
 import { useToast } from '@chakra-ui/react';
+import { ChatWidget } from '../components/ChatWidget';
 
 const CandidateDetails: React.FC = () => {
   // Track action in progress for each job

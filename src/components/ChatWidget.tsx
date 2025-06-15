@@ -76,7 +76,7 @@ export const ChatWidget = ({ onAIGeneratedJob, candidateId }: { onAIGeneratedJob
             whileTap={{ scale: 0.95 }}
           >
             <AnimatedLogo size={20} color="white" />
-            <Text>Chat</Text>
+            <Text>Robin</Text>
           </GradientButton>
           <Sparkle />
           <Box position="absolute" top={-2} right={-2}>

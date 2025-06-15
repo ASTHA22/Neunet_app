@@ -64,8 +64,8 @@ export const Sidebar = () => {
           <SidebarLink to="/create-job" icon={FiBriefcase}>
             Create a job
           </SidebarLink>
-          <SidebarLink to="/job-listings" icon={FiUsers}>
-            Job listings
+          <SidebarLink to="/jobs" icon={FiUsers}>
+            Job Listings
           </SidebarLink>
           <SidebarLink to="/settings" icon={FiSettings}>
             Settings

@@ -33,15 +33,26 @@ import { generateJobDescription, getCandidateById, getJobCandidates, sendEmail }
 import { JobFormData } from '../pages/CreateJob';
 import { useParams } from 'react-router-dom';
 
-// Helper to render candidate cards or fallback to plain text
-function renderChatMessage(textOrObj: string | any) {
-  // If it's a string, render as plain text
-  if (typeof textOrObj === 'string') {
-    return <Text whiteSpace="pre-line">{textOrObj}</Text>;
+// Helper to render different message types
+interface MessageContent {
+  type: string;
+  [key: string]: any;
+}
+
+function renderChatMessage(content: string | MessageContent) {
+  // If it's a string, wrap it in a message object
+  if (typeof content === 'string') {
+    return <Text whiteSpace="pre-line">{content}</Text>;
   }
-  // If it's an object with type topCandidates
-  if (textOrObj && typeof textOrObj === 'object' && textOrObj.type === 'topCandidates' && Array.isArray(textOrObj.candidates)) {
-    const candidates = textOrObj.candidates;
+
+  // Handle different message types
+  if (!content || typeof content !== 'object') {
+    return <Text color="red.500">[Invalid message format]</Text>;
+  }
+
+  // Handle top candidates
+  if (content.type === 'topCandidates' && Array.isArray(content.candidates)) {
+    const candidates = content.candidates;
     return (
       <VStack align="stretch" spacing={3}>
         <Text fontWeight="bold" mb={2}>Top Candidates for this Job:</Text>
@@ -61,9 +72,9 @@ function renderChatMessage(textOrObj: string | any) {
       </VStack>
     );
   }
-  // If it's an object with type jobs_applied_cards
-  if (textOrObj && typeof textOrObj === 'object' && textOrObj.type === 'jobs_applied_cards' && Array.isArray(textOrObj.jobs)) {
-    const jobs = textOrObj.jobs;
+  // Handle jobs applied cards
+  if (content.type === 'jobs_applied_cards' && Array.isArray(content.jobs)) {
+    const jobs = content.jobs;
     return (
       <VStack align="stretch" spacing={3} mt={2} mb={2}>
         {jobs.map((job: any, idx: number) => (
@@ -79,8 +90,13 @@ function renderChatMessage(textOrObj: string | any) {
       </VStack>
     );
   }
-  // Fallback for unknown object types
-  return <Text color="red.400">[Unsupported message format]</Text>;
+  // Fallback for unknown message types
+  return (
+    <Text color="red.500">
+      [Unsupported message format: {content.type || 'unknown'}]
+      {JSON.stringify(content, null, 2)}
+    </Text>
+  );
 }
 
 
@@ -583,7 +599,7 @@ export const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidate
         <HStack spacing={3} align="center">
           <AnimatedLogo size={20} />
           <Text fontSize="lg" fontWeight="medium">
-            Chatbot
+            Robin
           </Text>
           <Box flex={1} />
           <CloseButton onClick={handleClose} />
@@ -611,22 +627,36 @@ export const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidate
         )}
         {/* Chat conversation area */}
         <VStack spacing={4} width="200px">
-          <>
+          <VStack spacing={4} width="100%" px={4} align="stretch">
             {messages.map((msg, idx) => {
-              let parsed = msg.text;
-              if (typeof parsed === 'string' && parsed.startsWith('{') && parsed.endsWith('}')) {
+              let content = msg.text;
+              // If content is a string that looks like JSON, try to parse it
+              if (typeof content === 'string' && content.trim().startsWith('{') && content.trim().endsWith('}')) {
                 try {
-                  parsed = JSON.parse(parsed);
-                } catch {}
+                  content = JSON.parse(content);
+                } catch (e) {
+                  console.warn('Failed to parse message as JSON:', content);
+                }
               }
+              // If content is already an object, use it directly
+              const messageContent = typeof content === 'object' ? content : { type: 'text', content };
+              
               return (
-                <Box key={idx} alignSelf={msg.sender === 'user' ? 'flex-end' : 'flex-start'}>
-                  {renderChatMessage(parsed)}
+                <Box 
+                  key={idx} 
+                  alignSelf={msg.sender === 'user' ? 'flex-end' : 'flex-start'}
+                  maxW="80%"
+                  bg={msg.sender === 'user' ? 'purple.50' : 'gray.50'}
+                  p={3}
+                  borderRadius="lg"
+                  boxShadow="sm"
+                >
+                  {renderChatMessage(messageContent)}
                 </Box>
               );
             })}
             <div ref={chatBottomRef} />
-          </>
+          </VStack>
         </VStack>
 
         {/* Email Compose Modal */}
