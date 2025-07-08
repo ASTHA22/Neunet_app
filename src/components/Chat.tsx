@@ -90,6 +90,11 @@ function renderChatMessage(content: string | MessageContent) {
       </VStack>
     );
   }
+  // Handle simple text message objects
+  if (content.type === 'text' && typeof content.content === 'string') {
+    return <Text whiteSpace="pre-line">{content.content}</Text>;
+  }
+
   // Fallback for unknown message types
   return (
     <Text color="red.500">
