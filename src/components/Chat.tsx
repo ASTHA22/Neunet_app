@@ -271,6 +271,7 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
     const pingInterval = setInterval(() => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: "ping" }));
+        console.log("Ping sent", new Date());
       }
     }, 60000);
 
@@ -286,7 +287,9 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
     socket.onclose = (e) => {
       setWsConnected(false);
       console.warn('[WS] Closed:', e);
+      console.log('[WS] Close event details:', e);
     };
+
 
     // Cleanup on unmount
     return () => {
