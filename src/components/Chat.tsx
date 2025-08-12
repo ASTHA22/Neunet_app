@@ -274,12 +274,7 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
       }
     }, 60000);
 
-    // Cleanup on unmount
-    return () => {
-      clearInterval(pingInterval);
-      socket.close();
-    };
-
+    // Register event handlers BEFORE the return!
     socket.onopen = () => {
       setWsConnected(true);
       console.log('[WS] Connected to backend chat for session', sessionId);
@@ -292,6 +287,13 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
       setWsConnected(false);
       console.warn('[WS] Closed:', e);
     };
+
+    // Cleanup on unmount
+    return () => {
+      clearInterval(pingInterval);
+      socket.close();
+    };
+
     socket.onmessage = (event) => {
       console.log('[WS] Received message from backend:', event.data);
       try {
