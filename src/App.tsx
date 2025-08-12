@@ -13,6 +13,8 @@ import { Sidebar } from './components/Sidebar'
 import { ChatWidget } from './components/ChatWidget'
 import ResumeParser from './components/ResumeParser'
 import { JobFormData } from './pages/CreateJob'
+import ChatOverlay from './components/ChatOverlay'
+import { RobinButton } from './components/RobinButton'
 
 function App() {
   const location = useLocation()
@@ -44,6 +46,10 @@ function App() {
     }))
   }, [])
 
+  const [isChatOverlayOpen, setChatOverlayOpen] = useState(false);
+
+  // Use RobinButton from components for overlay trigger
+
   return (
     <Box minH="100vh" bg="#FAFAFA">
       {!isLoginPage && <Sidebar />}
@@ -60,21 +66,40 @@ function App() {
           <Route path="/apply/:jobId" element={<ApplyJob />} />
           <Route path="/job-candidates/:jobId" element={<JobCandidates />} />
           <Route path="/job-candidates/:jobId/candidate/:candidateId" element={<CandidateDetails />} />
-<Route path="/candidates/:candidateId" element={<CandidateDetails />} />
+          <Route path="/candidates/:candidateId" element={<CandidateDetails />} />
           <Route path="/resume-parser" element={<ResumeParser />} />
         </Routes>
       </Box>
-      {/* Only show global ChatWidget if not on candidate details pages */}
-      {!isLoginPage && !isChatPage && (
-        location.pathname === '/create-job' ? (
-          <ChatWidget onAIGeneratedJob={handleAIGeneratedJob} />
-        ) : (
-          // Hide ChatWidget on candidate details pages
-          !/^\/job-candidates\/[^/]+\/candidate\/[^/]+$/.test(location.pathname) &&
-          !/^\/candidates\/[^/]+$/.test(location.pathname) &&
-          <ChatWidget />
-        )
-      )}
+      {/* Show RobinButton globally except on /login and /chat */}
+      {!isLoginPage && !isChatPage && <RobinButton onClick={() => setChatOverlayOpen(true)} />}
+      {/* Global Chat Overlay (ChatPage as overlay) */}
+      <React.Suspense fallback={null}>
+        {!isLoginPage && !isChatPage && (
+          <>
+            {/* Overlay is shown when open */}
+            <Box as="span">
+              {isChatOverlayOpen && (
+                <>
+                  {/* Overlay disables background scroll */}
+                  <Box
+                    position="fixed"
+                    top={0}
+                    left={0}
+                    width="100vw"
+                    height="100vh"
+                    bg="blackAlpha.300"
+                    zIndex={2999}
+                    onClick={() => setChatOverlayOpen(false)}
+                  />
+                  {/* ChatOverlay renders ChatPage as 30% right overlay */}
+                  {/* Dynamically import to avoid circular deps if needed */}
+                  <ChatOverlay isOpen={isChatOverlayOpen} onClose={() => setChatOverlayOpen(false)} />
+                </>
+              )}
+            </Box>
+          </>
+        )}
+      </React.Suspense>
     </Box>
   )
 }

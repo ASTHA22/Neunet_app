@@ -1,7 +1,7 @@
 import { Button, useDisclosure, Box, HStack, Text } from '@chakra-ui/react'
 import { motion } from 'framer-motion'
 import { AnimatedLogo } from './AnimatedLogo'
-import { Chat } from './Chat'
+import Chat from './Chat'
 import { keyframes } from '@emotion/react'
 import styled from '@emotion/styled'
 import { JobFormData } from '../pages/CreateJob';
@@ -53,23 +53,39 @@ const Sparkle = ({ delay = 0 }) => (
   />
 )
 
-export const ChatWidget = ({ onAIGeneratedJob, candidateId }: { onAIGeneratedJob?: (jobFields: Partial<JobFormData>) => void, candidateId?: string }) => {
-  console.log('ChatWidget candidateId:', candidateId);
+// On home page, ChatWidget behaves like ChatPage by passing fullPage=true to Chat
+import { useParams, useLocation } from 'react-router-dom';
+
+function extractIdsFromPath(pathname: string) {
+  let candidateId, jobId;
+  // /jobs/:jobId/candidates or /job-candidates/:jobId
+  let jobMatch = pathname.match(/(?:jobs|job-candidates)\/(\w+)/);
+  if (jobMatch) jobId = jobMatch[1];
+  // /candidates/:candidateId
+  let candMatch = pathname.match(/candidates\/(\w+)/);
+  if (candMatch) candidateId = candMatch[1];
+  return { candidateId, jobId };
+}
+
+export const ChatWidget = ({ onAIGeneratedJob, candidateId: candidateIdProp, fullPage = false }: { onAIGeneratedJob?: (jobFields: Partial<JobFormData>) => void, candidateId?: string, fullPage?: boolean }) => {
+  const params = useParams<{ jobId?: string; candidateId?: string }>();
+  const location = useLocation();
+  let candidateId = candidateIdProp || params.candidateId;
+  let jobId = params.jobId;
+  // Fallback: parse from pathname
+  if (!candidateId || !jobId) {
+    const ids = extractIdsFromPath(location.pathname);
+    candidateId = candidateId || ids.candidateId;
+    jobId = jobId || ids.jobId;
+  }
+  console.log('ChatWidget candidateId:', candidateId, 'jobId:', jobId, 'params:', params, 'prop:', candidateIdProp);
   const { isOpen, onOpen, onClose } = useDisclosure()
 
   return (
-    <Box>
-      <Box
-        as={motion.div}
-        position="fixed"
-        top={4}
-        right={4}
-        zIndex={1000}
-        opacity={isOpen ? 0 : 1}
-        visibility={isOpen ? 'hidden' : 'visible'}
-        transition="opacity 0.2s ease-in-out, visibility 0.2s ease-in-out"
-      >
-        <Box position="relative">
+    <>
+      {/* Robin Button (only show when chat is closed) */}
+      {!isOpen && (
+        <Box position="fixed" top={4} right={4} zIndex={1000}>
           <GradientButton
             onClick={onOpen}
             whileHover={{ scale: 1.05 }}
@@ -86,8 +102,46 @@ export const ChatWidget = ({ onAIGeneratedJob, candidateId }: { onAIGeneratedJob
             <Sparkle delay={1} />
           </Box>
         </Box>
-      </Box>
-      <Chat isOpen={isOpen} onClose={onClose} onAIGeneratedJob={onAIGeneratedJob} candidateId={candidateId} />
-    </Box>
-  )
+      )}
+      {/* Chat slide-in overlay (only show when open) */}
+      {isOpen && (
+        <Box
+          as={motion.div}
+          position="fixed"
+          top={0}
+          right={0}
+          height="100vh"
+          width={["100vw", "30vw"]}
+          zIndex={1100}
+          bg="white"
+          boxShadow="lg"
+          initial={{ x: "100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "100%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          <Chat
+            isOpen={isOpen}
+            onClose={onClose}
+            onAIGeneratedJob={onAIGeneratedJob}
+            candidateId={candidateId}
+            jobId={jobId}
+            fullPage={fullPage}
+            // Pass through quickActions and sendMessage if Chat supports them
+          />
+          {/* Quick Actions (identical to ChatPage) */}
+          <Box p={2} bg="gray.50" borderTopWidth={1} borderColor="gray.200">
+            <HStack spacing={2} justify="center">
+              <Button size="sm" leftIcon={<span>👑</span>} onClick={() => {/* sendMessage('show top candidates') via Chat ref */}}>Show top candidates</Button>
+              <Button size="sm" leftIcon={<span>💼</span>} onClick={() => {/* sendMessage('show jobs applied') via Chat ref */}}>Show jobs applied</Button>
+              <Button size="sm" leftIcon={<span>📝</span>} onClick={() => {/* sendMessage('summarize candidate') via Chat ref */}}>Summarize candidate</Button>
+              <Button size="sm" leftIcon={<span>❓</span>} onClick={() => {/* sendMessage('help') via Chat ref */}}>Help</Button>
+            </HStack>
+          </Box>
+        </Box>
+      )}
+    </>
+  );
 }
+
+

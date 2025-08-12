@@ -60,6 +60,15 @@ function normalizeRanking(ranking: number): number {
 }
 
 const CandidateCard = ({ jobId, candidate, reloadCandidates }: CandidateCardProps) => {
+  // Canonical profile URL format: https://www.neunet.io/job-candidates/{job_id}/candidate/{candidate_id}
+  const profileUrl = `https://www.neunet.io/job-candidates/${candidate.job_id}/candidate/${candidate.candidate_id}`;
+  // Normalize ranking to 0-100% if needed
+  let matchScore: string | number = 'N/A';
+  if (typeof candidate.ranking === 'number') {
+    matchScore = candidate.ranking > 1 ? Math.round(candidate.ranking) : Math.round(candidate.ranking * 100);
+    matchScore = Math.max(0, Math.min(100, matchScore));
+  }
+
   const navigate = useNavigate();
   const toast = useToast();
   // Track download error for this candidate
@@ -158,12 +167,20 @@ function normalizeGithubLink(link: string): string {
 
   return (
     <Box>
+      {/* Always use candidate_id for navigation/profile links. Never fallback to email. */}
       <Flex 
         py={4} 
         align="center"
         _hover={{ bg: 'gray.50', cursor: 'pointer' }}
         borderRadius="md"
-        onClick={() => navigate(`/job-candidates/${encodeURIComponent(jobId)}/candidate/${encodeURIComponent(candidate.candidate_id || candidate.email)}`)}
+        onClick={() => {
+           console.log('[CandidateCard] candidate:', candidate);
+           if (candidate.candidate_id) {
+             navigate(`/job-candidates/${encodeURIComponent(jobId)}/candidate/${encodeURIComponent(candidate.candidate_id)}`);
+           } else {
+             toast({ title: 'Invalid candidate profile', status: 'error', duration: 3000 });
+           }
+         }}
       >
         <Avatar size="md" name={name} mr={4} />
         <Box flex={1}>
@@ -185,6 +202,23 @@ function normalizeGithubLink(link: string): string {
             <Text fontSize="xs" color="gray.500">
               Applied {new Date(applied_at).toLocaleDateString()}
             </Text>
+            <Badge colorScheme="purple" ml={2} fontSize="xs">
+              Match score: {matchScore !== 'N/A' ? `${matchScore}%` : 'N/A'}
+            </Badge>
+          </HStack>
+          <HStack mt={2} spacing={2}>
+            {/* Always use candidate_id for profile links. Never fallback to email. */}
+            {candidate.candidate_id ? (
+              <a href={`/job-candidates/${jobId}/candidate/${candidate.candidate_id}`} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" colorScheme="teal" variant="outline">View Profile</Button>
+              </a>
+            ) : (
+              <Tooltip label="Invalid candidate profile">
+                <Button size="sm" colorScheme="teal" variant="outline" isDisabled>
+                  View Profile
+                </Button>
+              </Tooltip>
+            )}
           </HStack>
         </Box>
         <HStack spacing={4} align="center" justify="flex-end" flex={1}>

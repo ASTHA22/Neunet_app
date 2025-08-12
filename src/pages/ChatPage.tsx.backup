@@ -1,0 +1,460 @@
+import { Box, Container, Input, Text, SimpleGrid, Icon, Link as ChakraLink, HStack, IconButton, VStack, Badge, Spinner, Tooltip, Button } from '@chakra-ui/react'
+import { FiMessageSquare, FiSend, FiUsers, FiEdit3, FiHelpCircle, FiBriefcase, FiHome, FiAlertCircle, FiLinkedin, FiGithub, FiActivity } from 'react-icons/fi';
+import ReactMarkdown from 'react-markdown';
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { AnimatedLogo } from '../components/AnimatedLogo'
+import { PostLoginQuickActions } from '../components/PostLoginQuickActions'
+import React from 'react';
+
+interface QuickLinkProps {
+  icon: any
+  title: string
+  description: string
+  to: string
+  iconColor?: string
+}
+
+const QuickLink = ({ icon, title, description, to, iconColor }: QuickLinkProps) => (
+  <ChakraLink
+    as={Link}
+    to={to}
+    display="block"
+    p={4}
+    bg="white"
+    borderRadius="lg"
+    _hover={{ bg: 'gray.50' }}
+    w="full"
+    h="full"
+    boxShadow="sm"
+  >
+    <HStack spacing={3} align="flex-start">
+      <Box color={iconColor || "brand.500"} mt={1}>
+        <Icon as={icon} boxSize={4} />
+      </Box>
+      <Box>
+        <Text fontWeight="medium" fontSize="md" mb={0.5}>
+          {title}
+        </Text>
+        <Text fontSize="sm" color="gray.600">
+          {description}
+        </Text>
+      </Box>
+    </HStack>
+  </ChakraLink>
+)
+
+// Define component message types
+interface Message {
+  text: any;
+  sender: 'user' | 'assistant';
+}
+
+// Define message content types
+interface TextContent {
+  type: 'text';
+  content: string;
+}
+
+interface JobsAppliedContent {
+  type: 'jobs_applied_cards';
+  jobs: any[];
+  message?: string;
+  candidateId?: string;
+}
+
+interface TopCandidatesContent {
+  type: 'topCandidates';
+  candidates: any[];
+  message?: string;
+}
+
+type MessageContent = TextContent | JobsAppliedContent | TopCandidatesContent;
+
+const ChatPage = () => {
+  const location = useLocation();
+  const { candidateId } = useParams<{ candidateId?: string }>();
+
+  const [inputValue, setInputValue] = useState('');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+  const [wsConnected, setWsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [lastPingSent, setLastPingSent] = useState<number | null>(null);
+  const [lastPongReceived, setLastPongReceived] = useState<number | null>(null);
+  const [connectionStats, setConnectionStats] = useState<{
+    pingCount: number;
+    pongCount: number;
+    messagesSent: number;
+    messagesReceived: number;
+    reconnectAttempts: number;
+    lastReconnectTime: number | null;
+  }>({ 
+    pingCount: 0, 
+    pongCount: 0, 
+    messagesSent: 0, 
+    messagesReceived: 0, 
+    reconnectAttempts: 0,
+    lastReconnectTime: null
+  });
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  const [sessionId, setSessionId] = useState<string>(() => {
+    const savedSessionId = localStorage.getItem('chatSessionId');
+    if (savedSessionId) return savedSessionId;
+    const newSessionId = `user-${Math.random().toString(36).substring(2, 15)}`;
+    localStorage.setItem('chatSessionId', newSessionId);
+    return newSessionId;
+  });
+
+  const connectionAttemptsRef = useRef<number>(0);
+  const maxReconnectAttempts = 3;
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cleanupWebSocketResources = () => {
+    if (wsRef.current) {
+      try {
+        if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+          wsRef.current.close();
+          console.log('[WS] WebSocket connection closed');
+        }
+      } catch (err) {
+        console.error('[WS] Error closing WebSocket:', err);
+      }
+      wsRef.current = null;
+    }
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
+  };
+
+  const setupWebSocket = () => {
+    // If we already have an active connection, don't create another one
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('[WS] WebSocket already connected, skipping reconnection');
+      return;
+    }
+    
+    if (connectionAttemptsRef.current >= maxReconnectAttempts) {
+      console.log('[WS] Max reconnection attempts reached');
+      setConnectionError('Unable to connect to chat server. Please refresh to try again.');
+      return;
+    }
+
+    try {
+      connectionAttemptsRef.current += 1;
+      const connectionDelay = connectionAttemptsRef.current > 1 ? 500 : 0;
+
+      setTimeout(() => {
+        console.log(`[WS] Attempting connection #${connectionAttemptsRef.current}`);
+        cleanupWebSocketResources();
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+        const wsUrl = `${protocol}//${host}/ws/chat/${sessionId}`;
+        console.log(`[WS] Connecting to ${wsUrl}`);
+
+        const socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
+
+        connectionTimeoutRef.current = setTimeout(() => {
+          if (socket.readyState !== WebSocket.OPEN) {
+            console.error('[WS] Connection timeout');
+            socket.close();
+          }
+        }, 15000);
+
+        socket.onopen = () => {
+          console.log('[WS] Connection established');
+          setWsConnected(true);
+          setConnectionStatus('connected');
+          setConnectionError(null);
+          connectionAttemptsRef.current = 0;
+          if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+
+          pingIntervalRef.current = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: 'ping' }));
+            }
+          }, 20000);
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            console.log('[WS] Received message:', event.data);
+            
+            // First check if the message is a string that needs to be parsed
+            let data;
+            if (typeof event.data === 'string') {
+              data = JSON.parse(event.data);
+            } else {
+              console.error('[WS] Received non-string message:', event.data);
+              return;
+            }
+            
+            // Handle ping/pong messages
+            if (data.type === 'pong') {
+              console.log('[WS] Received pong response');
+              return;
+            }
+            
+            // Handle ping messages
+            if (data.type === 'ping') {
+              console.log('[WS] Received ping, sending pong');
+              if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+              }
+              return;
+            }
+            
+            // Handle test echo responses
+            if (data.echo_response) {
+              console.log('[WS] Received echo response:', data);
+              setIsLoading(false);
+              const assistantMessage: Message = {
+                text: { type: 'text', content: `Echo response received: ${JSON.stringify(data)}` },
+                sender: 'assistant'
+              };
+              setMessages(prev => [...prev, assistantMessage]);
+              return;
+            }
+            
+            // Handle regular messages
+            console.log('[WS] Processing regular message:', data);
+            setIsLoading(false);
+            const assistantMessage: Message = {
+              text: data,
+              sender: 'assistant'
+            };
+            console.log('[WS] Adding message to chat:', assistantMessage);
+            setMessages(prev => [...prev, assistantMessage]);
+          } catch (error) {
+            console.error('[WS] Error parsing message:', error);
+            console.error('[WS] Raw message data:', event.data);
+            
+            // Show error to user
+            setIsLoading(false);
+            setMessages(prev => [...prev, { 
+              text: { type: 'text', content: `Error processing server response: ${error.message}. Please try again.` }, 
+              sender: 'assistant' 
+            }]);
+          }
+        };
+
+        socket.onerror = (event) => {
+          console.error('[WS] WebSocket error:', event);
+          setConnectionError('A connection error occurred.');
+          setConnectionStatus('error');
+          // Don't set wsConnected to false here, let onclose handle that
+        };
+
+        socket.onclose = (event) => {
+          console.log('[WS] Connection closed', event.code, event.reason);
+          setWsConnected(false);
+          setIsLoading(false);
+          
+          // Only update status to disconnected if we're not already in error state
+          if (connectionStatus !== 'error') {
+            setConnectionStatus('disconnected');
+          }
+          
+          cleanupWebSocketResources();
+
+          // Don't attempt reconnection for normal closure (1000) or if we've reached max attempts
+          if (event.code === 1000) {
+            console.log('[WS] Normal closure, not reconnecting');
+            return;
+          }
+          
+          if (connectionAttemptsRef.current < maxReconnectAttempts) {
+            // Exponential backoff with a minimum delay
+            const minDelay = 1000; // 1 second minimum
+            const delay = Math.max(minDelay, Math.pow(1.5, Math.min(connectionAttemptsRef.current, 10)) * 1000);
+            console.log(`[WS] Reconnecting in ${delay}ms (attempt ${connectionAttemptsRef.current + 1} of ${maxReconnectAttempts})`);
+            reconnectTimeoutRef.current = setTimeout(setupWebSocket, delay);
+          } else {
+            console.error(`[WS] Max reconnection attempts (${maxReconnectAttempts}) reached, giving up`);
+            setConnectionError(`Connection failed after ${maxReconnectAttempts} attempts. Please refresh the page.`);
+          }
+        };
+      }, connectionDelay);
+    } catch (err) {
+      console.error('[WS] Error setting up WebSocket:', err);
+      setConnectionError('Failed to setup chat connection.');
+    }
+  };
+
+  useEffect(() => {
+    setupWebSocket();
+    return () => cleanupWebSocketResources();
+  }, [sessionId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Helper function to determine badge color based on job status
+  const getStatusColor = (status: string): string => {
+    const statusLower = status.toLowerCase();
+    if (statusLower.includes('interview')) return 'green';
+    if (statusLower.includes('review')) return 'blue';
+    if (statusLower.includes('received')) return 'purple';
+    if (statusLower.includes('rejected')) return 'red';
+    if (statusLower.includes('offer')) return 'teal';
+    return 'gray';
+  };
+
+  // Handle onboarding action button clicks
+  const handleOnboardingAction = (message: string) => {
+    // Set the input value and then send it
+    setInputValue(message);
+    // Use setTimeout to ensure the state is updated before sending
+    setTimeout(() => {
+      const userMessage: Message = {
+        text: { type: 'text', content: message },
+        sender: 'user'
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      setIsLoading(true);
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        console.log('[WS] Sending message:', { text: message, context: { candidateId } });
+        wsRef.current.send(JSON.stringify({ text: message, context: { candidateId } }));
+      } else {
+        setIsLoading(false);
+        setMessages(prev => [...prev, { 
+          text: { type: 'text', content: 'Error: Not connected. Please try again.' }, 
+          sender: 'assistant' 
+        }]);
+        // Try to reconnect
+        setupWebSocket();
+      }
+    }, 0);
+  };
+
+// ... (rest of the code remains the same)
+
+                <Text>Reconnect Attempts: {connectionStats.reconnectAttempts}</Text>
+                {connectionStats.lastReconnectTime && (
+                  <Text>Last Reconnect: {new Date(connectionStats.lastReconnectTime).toLocaleTimeString()}</Text>
+                )}
+                <HStack mt={2} spacing={2}>
+                  <Button size="sm" colorScheme="blue" variant="outline" onClick={() => handleOnboardingAction('test connection')}>Test Connection</Button>
+                  <Button 
+                    size="xs" 
+                    onClick={() => {
+                      setConnectionStats({
+                        pingCount: 0,
+                        pongCount: 0,
+                        messagesSent: 0,
+                        messagesReceived: 0,
+                        reconnectAttempts: 0,
+                        lastReconnectTime: null
+                      });
+                    }}
+                  >
+                    Reset Stats
+                  </Button>
+                </HStack>
+              </VStack>
+            </Box>
+          )}
+          
+          {messages.length === 0 ? (
+            <VStack spacing={8} justify="center" h="full">
+              <Text fontSize="xl" color="gray.500">How can I help you today?</Text>
+              <PostLoginQuickActions onAction={handleOnboardingAction} />
+            </VStack>
+          ) : (
+            <>
+              {messages.map((message, index) => (
+                <Box
+                  key={index}
+                  alignSelf={message.sender === 'user' ? 'flex-end' : 'flex-start'}
+                  bg={message.sender === 'user' ? 'blue.500' : 'gray.200'}
+                  color={message.sender === 'user' ? 'white' : 'black'}
+                  borderRadius="lg"
+                  p={3}
+                  m={1}
+                  maxW="80%"
+                >
+                  {renderMessageContent(message)}
+                </Box>
+              ))}
+              {isLoading && (
+                <Box alignSelf="flex-start" p={3} m={1}>
+                  <Spinner size="sm" mr={2} />
+                  <Text as="span">Thinking...</Text>
+                </Box>
+              )}
+            </>
+          )}
+          <div ref={messagesEndRef} />
+        </Box>
+
+        <Box p={4} borderTop="1px" borderColor="gray.100">
+          <Box position="relative">
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage(inputValue)}
+              placeholder="Ask me anything..."
+              size="lg"
+              pr="3rem"
+              disabled={!wsConnected || isLoading}
+              aria-label="Chat input field"
+            />
+            <IconButton
+              icon={isLoading ? <Spinner size="xs" /> : <FiSend />}
+              aria-label="Send message"
+              position="absolute"
+              right="0.5rem"
+              top="50%"
+              transform="translateY(-50%)"
+              size="sm"
+              colorScheme="blue"
+              onClick={() => sendMessage(inputValue)}
+              disabled={!wsConnected || !inputValue.trim() || isLoading}
+            />
+          </Box>
+          
+          {/* Quick action buttons */}
+          {messages.length > 0 && (
+            <HStack mt={2} spacing={2} overflowX="auto" py={2}>
+              {quickActions.map((action, idx) => (
+                <IconButton 
+                  key={idx} 
+                  aria-label={action.label} 
+                  icon={<Icon as={action.icon} />} 
+                  onClick={action.action} 
+                  size="sm" 
+                  variant="ghost" 
+                  colorScheme="purple" 
+                  title={action.label} 
+                  isDisabled={isLoading} 
+                />
+              ))}
+            </HStack>
+          )}
+        </Box>
+      </Box>
+    </Container>
+  );
+};
+
+export { ChatPage };

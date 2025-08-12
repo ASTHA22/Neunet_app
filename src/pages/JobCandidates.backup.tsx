@@ -144,7 +144,14 @@ const CandidateCard = ({ jobId, candidate, reloadCandidates, toast, navigate }: 
         align="center"
         _hover={{ bg: 'gray.50', cursor: 'pointer' }}
         borderRadius="md"
-        onClick={() => navigate(`/job-candidates/${encodeURIComponent(jobId)}/candidate/${encodeURIComponent(candidate.candidate_id || candidate.email)}`)}
+        // Always use candidate_id for navigation. Never fallback to email.
+onClick={() => {
+  if (candidate.candidate_id) {
+    navigate(`/job-candidates/${encodeURIComponent(jobId)}/candidate/${encodeURIComponent(candidate.candidate_id)}`);
+  } else {
+    toast({ title: 'Invalid candidate profile', status: 'error', duration: 3000 });
+  }
+}}
       >
         <Avatar size="md" name={name} mr={4} />
         <Box flex={1}>
