@@ -264,7 +264,9 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
   }, []);
 
   useEffect(() => {
-    const socket = new WebSocket(`ws://localhost:8000/ws/chat/${sessionId}`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const socket = new WebSocket(`${protocol}//${host}/ws/chat/${sessionId}`);
     socket.onopen = () => {
       setWsConnected(true);
       console.log('[WS] Connected to backend chat for session', sessionId);
