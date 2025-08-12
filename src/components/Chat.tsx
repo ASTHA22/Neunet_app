@@ -264,9 +264,8 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
   }, []);
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const socket = new WebSocket(`${protocol}//${host}/ws/chat/${sessionId}`);
+    // Always use Render backend for WebSocket connection
+    const socket = new WebSocket(`wss://neunet-ai-services.onrender.com/ws/chat/${sessionId}`);
     socket.onopen = () => {
       setWsConnected(true);
       console.log('[WS] Connected to backend chat for session', sessionId);
