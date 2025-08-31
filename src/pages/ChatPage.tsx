@@ -264,11 +264,8 @@ export const ChatPage = () => {
     console.log(`[WS] Attempting connection #${reconnectAttempt}`);
 
     // Determine WebSocket URL based on current protocol
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Use port 8000 for localhost which is where FastAPI typically runs
-    const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-    // Only include candidateId if it exists and is not empty
-    const wsUrl = `${protocol}//${host}/ws/chat/${sessionId}${candidateId && candidateId.trim() ? `?candidateId=${candidateId}` : ''}`;
+    // Always use Render backend for WebSocket connection in production
+    const wsUrl = `wss://api.neunet.io/ws/chat/${sessionId}${candidateId && candidateId.trim() ? `?candidateId=${candidateId}` : ''}`;
     console.log(`[WS] Using WebSocket URL: ${wsUrl} with candidateId: ${candidateId || 'none'}`);
     console.log(`[WS] Connecting to ${wsUrl}`);
 
