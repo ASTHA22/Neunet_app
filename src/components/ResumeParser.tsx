@@ -16,7 +16,7 @@ import {
 
 const API_URL =
   window.location.hostname !== 'localhost'
-    ? 'https://neunet-ai-services.onrender.com'
+    ? 'https://api.neunet.io'
     : 'http://localhost:8000';
 
 const ResumeParser: React.FC = () => {

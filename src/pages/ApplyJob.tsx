@@ -19,7 +19,7 @@ import { applyForJob } from '../services/api';
 
 const API_URL =
   window.location.hostname !== 'localhost'
-    ? 'https://neunet-ai-services.onrender.com'
+    ? 'https://api.neunet.io'
     : 'http://localhost:8000';
 
 import { ResumeData } from '../types/resume';
