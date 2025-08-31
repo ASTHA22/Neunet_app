@@ -265,7 +265,7 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
 
   useEffect(() => {
     // Always use Render backend for WebSocket connection
-    const socket = new WebSocket(`wss://neunet-ai-services.onrender.com/ws/chat/${sessionId}`);
+    const socket = new WebSocket(`wss://api.neunet.io/ws/chat/${sessionId}`);
 
     // Keepalive ping every 60 seconds
     const pingInterval = setInterval(() => {
