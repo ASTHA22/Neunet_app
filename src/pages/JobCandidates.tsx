@@ -209,9 +209,17 @@ function normalizeGithubLink(link: string): string {
           <HStack mt={2} spacing={2}>
             {/* Always use candidate_id for profile links. Never fallback to email. */}
             {candidate.candidate_id ? (
-              <a href={`/job-candidates/${jobId}/candidate/${candidate.candidate_id}`} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" colorScheme="teal" variant="outline">View Profile</Button>
-              </a>
+              <Button
+                size="sm"
+                colorScheme="teal"
+                variant="outline"
+                onClick={e => {
+                  e.stopPropagation();
+                  navigate(`/job-candidates/${encodeURIComponent(jobId)}/candidate/${encodeURIComponent(candidate.candidate_id)}`);
+                }}
+              >
+                View Profile
+              </Button>
             ) : (
               <Tooltip label="Invalid candidate profile">
                 <Button size="sm" colorScheme="teal" variant="outline" isDisabled>
