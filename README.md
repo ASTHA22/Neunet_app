@@ -43,21 +43,33 @@ neunet_app/
 
 ## Features
 
-1. Job Management
+1. **Authentication System**
+   - User signup and login
+   - JWT token-based authentication
+   - Multiple password reset methods:
+     - Email reset link (traditional)
+     - Identity verification (no email needed)
+     - Change password (when logged in)
+   - Secure password hashing
+   - Session management
+
+2. **Job Management**
    - Create new job postings
    - View and manage job listings
    - Edit job details and requirements
 
-2. Application Handling
+3. **Application Handling**
    - View candidate applications
    - Track application status
    - Process applications
 
-3. User Interface
+4. **User Interface**
    - Modern, responsive design
    - Intuitive navigation
    - Interactive components
    - Loading states and error handling
+   - Toast notifications
+   - Beautiful modals and forms
 
 ## Getting Started
 
@@ -66,11 +78,16 @@ neunet_app/
    ```bash
    npm install
    ```
-3. Start the development server:
+3. Create `.env` file:
+   ```bash
+   cp .env.example .env
+   # Edit .env and set VITE_API_URL=http://localhost:8000
+   ```
+4. Start the development server:
    ```bash
    npm run dev
    ```
-4. Build for production:
+5. Build for production:
    ```bash
    npm run build
    ```

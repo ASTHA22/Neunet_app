@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Box } from '@chakra-ui/react'
 import { Login } from './pages/Login'
+import { ResetPassword } from './pages/ResetPassword'
 import { Dashboard } from './pages/Dashboard'
 import { JobListings } from './pages/JobListings'
 import { CreateJob } from './pages/CreateJob'
@@ -19,6 +20,7 @@ import { RobinButton } from './components/RobinButton'
 function App() {
   const location = useLocation()
   const isLoginPage = location.pathname === '/login'
+  const isResetPasswordPage = location.pathname === '/reset-password'
   const isChatPage = location.pathname === '/chat'
 
   // Global job form state for /create-job
@@ -52,12 +54,13 @@ function App() {
 
   return (
     <Box minH="100vh" bg="#FAFAFA">
-      {!isLoginPage && <Sidebar />}
-      <Box ml={!isLoginPage ? '250px' : 0}>
+      {!isLoginPage && !isResetPasswordPage && <Sidebar />}
+      <Box ml={!isLoginPage && !isResetPasswordPage ? '250px' : 0}>
         <Routes>
           {/* Redirect root to login if not authenticated */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/jobs" element={<JobListings />} />
           <Route path="/job-listings" element={<Navigate to="/jobs" replace />} />
@@ -70,11 +73,11 @@ function App() {
           <Route path="/resume-parser" element={<ResumeParser />} />
         </Routes>
       </Box>
-      {/* Show RobinButton globally except on /login and /chat */}
-      {!isLoginPage && !isChatPage && <RobinButton onClick={() => setChatOverlayOpen(true)} />}
+      {/* Show RobinButton globally except on /login, /reset-password and /chat */}
+      {!isLoginPage && !isResetPasswordPage && !isChatPage && <RobinButton onClick={() => setChatOverlayOpen(true)} />}
       {/* Global Chat Overlay (ChatPage as overlay) */}
       <React.Suspense fallback={null}>
-        {!isLoginPage && !isChatPage && (
+        {!isLoginPage && !isResetPasswordPage && !isChatPage && (
           <>
             {/* Overlay is shown when open */}
             <Box as="span">

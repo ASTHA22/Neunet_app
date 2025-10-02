@@ -916,7 +916,9 @@ export const ChatPage = () => {
               top="50%"
               transform="translateY(-50%)"
               size="sm"
-              colorScheme="blue"
+              bg="#9C6CFE"
+              color="white"
+              _hover={{ bg: '#8A5EE3' }}
               onClick={() => sendMessage()}
               disabled={!wsConnected || !inputValue.trim() || isLoading}
             />

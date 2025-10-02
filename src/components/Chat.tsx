@@ -25,7 +25,8 @@ import {
   useToast,
   Divider,
   List,
-  ListItem
+  ListItem,
+  useColorModeValue
 } from '@chakra-ui/react';
 
 // --- Helper to render job description as a card ---
@@ -691,7 +692,9 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
           <IconButton
             aria-label="Send"
             icon={<FiSend />}
-            colorScheme="purple"
+            bg={useColorModeValue('purple.400', 'purple.300')}
+            color="white"
+            _hover={{ bg: useColorModeValue('purple.500', 'purple.200') }}
             onClick={handleSend}
             isDisabled={!message.trim()}
           />
