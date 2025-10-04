@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use the deployed API for production, localhost for development
+const isProduction = window.location.hostname === 'neunet.io' || window.location.hostname === 'api.neunet.io' || window.location.hostname === 'www.neunet.io';
+const API_BASE_URL = isProduction
+  ? 'https://api.neunet.io' // Production API URL
+  : 'http://localhost:8000'; // Local FastAPI backend
 
 export interface SignupData {
   name: string;
