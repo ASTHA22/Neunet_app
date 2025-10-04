@@ -1,7 +1,7 @@
 // Use the deployed API for production, localhost for development
 const isProduction = window.location.hostname === 'neunet.io' || window.location.hostname === 'api.neunet.io' || window.location.hostname === 'www.neunet.io';
 const API_BASE_URL = isProduction
-  ? 'https://api.neunet.io' // Production API URL
+  ? 'https://api.neunet.io' // Production API URL (same as other services)
   : 'http://localhost:8000'; // Local FastAPI backend
 
 export interface SignupData {
