@@ -10,6 +10,8 @@ import { ChatPage } from './pages/ChatPage'
 import { JobCandidates } from './pages/JobCandidates'
 import CandidateDetails from './pages/CandidateDetails'
 import { ApplyJob } from './pages/ApplyJob'
+import { Settings } from './pages/Settings'
+import { Feedback } from './pages/Feedback'
 import { Sidebar } from './components/Sidebar'
 import { ChatWidget } from './components/ChatWidget'
 import ResumeParser from './components/ResumeParser'
@@ -71,6 +73,8 @@ function App() {
           <Route path="/job-candidates/:jobId/candidate/:candidateId" element={<CandidateDetails />} />
           <Route path="/candidates/:candidateId" element={<CandidateDetails />} />
           <Route path="/resume-parser" element={<ResumeParser />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/feedback" element={<Feedback />} />
         </Routes>
       </Box>
       {/* Show RobinButton globally except on /login, /reset-password and /chat */}

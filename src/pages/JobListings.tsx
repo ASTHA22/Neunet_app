@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Heading,
@@ -23,21 +23,63 @@ export const JobListings: React.FC = () => {
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const navigate = useNavigate();
+  // Prevent races between multiple concurrent refreshes (mount, focus, interval)
+  const latestRequestId = useRef(0);
+  const loadingCounts = useRef(false);
 
   const loadCandidateCounts = async (fetchedJobs: Job[]) => {
-    const counts: Record<string, number> = {};
-    for (const job of fetchedJobs) {
-      try {
-        const candidates = await getJobCandidates(job.job_id);
-        console.log(`Candidates for job ${job.job_id}:`, candidates); // Debug log
-        counts[job.job_id] = candidates?.length || 0;
-      } catch (error) {
-        console.error(`Error fetching candidates for job ${job.job_id}:`, error);
-        counts[job.job_id] = 0;
-      }
+    // Guard: don't wipe counts if caller passes empty or undefined
+    if (!Array.isArray(fetchedJobs) || fetchedJobs.length === 0) {
+      console.log('loadCandidateCounts skipped: no jobs');
+      return;
     }
-    console.log('Updated candidate counts:', counts); // Debug log
-    setCandidateCounts(counts);
+    if (loadingCounts.current) {
+      console.log('loadCandidateCounts skipped: already in flight');
+      return;
+    }
+    loadingCounts.current = true;
+    const reqId = ++latestRequestId.current;
+    try {
+      // Fetch per-job candidates in parallel to reduce race window
+      const validToCount = fetchedJobs.filter(j => typeof j.job_id === 'string' && /^[0-9]{6}$/.test(j.job_id));
+      const settled = await Promise.allSettled(
+        validToCount.map(async (job) => {
+          try {
+            const candidates = await getJobCandidates(job.job_id);
+            console.log(`Candidates for job ${job.job_id}:`, candidates);
+            const key = String(job.job_id).trim();
+            const count = Array.isArray(candidates)
+              ? candidates.filter((c: any) => {
+                  if (!c || typeof c !== 'object') return false;
+                  if (c.type && String(c.type).toLowerCase() === 'application') return false; // exclude metadata rows
+                  const hasIdentity = (typeof c.email === 'string' && c.email.trim() !== '') || (typeof c.candidate_email === 'string' && c.candidate_email.trim() !== '');
+                  return hasIdentity;
+                }).length
+              : 0;
+            return [key, count] as const;
+          } catch (error) {
+            console.error(`Error fetching candidates for job ${job.job_id}:`, error);
+            return [String(job.job_id).trim(), 0] as const;
+          }
+        })
+      );
+      // Always merge results; merging is safe even if newer requests start
+      const counts: Record<string, number> = {};
+      for (const r of settled) {
+        if (r.status === 'fulfilled') {
+          const [key, count] = r.value;
+          counts[key] = count;
+        } else {
+          // Rejection already logged inside map; skip
+        }
+      }
+      console.log('Updated candidate counts (merge, no discard):', counts);
+      setCandidateCounts((prev) => ({ ...prev, ...counts }));
+    } catch (e) {
+      console.error('loadCandidateCounts failed:', e);
+    } finally {
+      loadingCounts.current = false;
+    }
   };
 
   const loadJobs = async () => {
@@ -58,23 +100,14 @@ export const JobListings: React.FC = () => {
 
   // Refresh candidate counts when component regains focus
   useEffect(() => {
-    const handleFocus = () => {
-      console.log('Window focused, refreshing candidate counts...'); // Debug log
-      loadCandidateCounts(jobs);
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    // Disabled focus refresh to reduce contention and in-flight skips
+    return () => {};
   }, [jobs]);
 
   // Refresh candidate counts every 30 seconds
   useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('Auto-refreshing candidate counts...'); // Debug log
-      loadCandidateCounts(jobs);
-    }, 30000);
-
-    return () => clearInterval(interval);
+    // Disabled 30s auto-refresh to reduce request volume and race conditions
+    return () => {};
   }, [jobs]);
 
   const formatDate = (dateString: string) => {
@@ -128,7 +161,7 @@ export const JobListings: React.FC = () => {
                 </VStack>
                 <VStack align="end" spacing={1}>
                   <Text color="purple.500" fontWeight="bold">
-                    {candidateCounts[job.job_id] || 0} Candidates
+                    {candidateCounts[String(job.job_id)] ?? 0} Candidates
                   </Text>
                   <Text fontSize="sm" color="gray.500">
                     ID: {job.job_id}

@@ -90,6 +90,36 @@ export const updateCandidateStatus = async (jobId: string, candidateId: string, 
   }
 };
 
+export const getUserSettings = async (userEmail: string) => {
+  try {
+    const response = await apiClient.get(`/settings/${userEmail}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user settings:', error);
+    throw error;
+  }
+};
+
+export const updateUserSettings = async (userEmail: string, settings: any) => {
+  try {
+    const response = await apiClient.put(`/settings/${userEmail}`, settings);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating user settings:', error);
+    throw error;
+  }
+};
+
+export const submitFeedback = async (feedback: { email: string; category: string; message: string }) => {
+  try {
+    const response = await apiClient.post('/feedback', feedback);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    throw error;
+  }
+};
+
 export const getCandidateById = async (candidateId: string) => {
   try {
     const response = await apiClient.get(`/candidates/${candidateId}`);
