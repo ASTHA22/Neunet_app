@@ -100,13 +100,31 @@ export const authService = {
     // Store token and user in localStorage
     localStorage.setItem('access_token', result.access_token);
     localStorage.setItem('user', JSON.stringify(result.user));
+    localStorage.setItem('login_time', new Date().toISOString());
     
     return result;
   },
 
-  logout() {
+  async logout() {
+    const user = this.getUser();
+    if (user?.email) {
+      try {
+        // Call backend to log logout activity
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: user.email }),
+        });
+      } catch (error) {
+        console.error('Failed to log logout activity:', error);
+      }
+    }
+    
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
+    localStorage.removeItem('login_time');
   },
 
   getToken(): string | null {
