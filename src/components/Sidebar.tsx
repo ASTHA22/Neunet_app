@@ -3,6 +3,7 @@ import { Box, VStack, Icon, Text, Link as ChakraLink, Button, Flex } from '@chak
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiBriefcase, FiUsers, FiSettings, FiLogOut, FiMessageCircle, FiHelpCircle } from 'react-icons/fi';
 import { AnimatedLogo } from './AnimatedLogo';
+import { authService } from '../services/authService';
 
 const SidebarLink = ({ to, icon, children }: { to: string; icon: any; children: string }) => {
   const location = useLocation();
@@ -32,9 +33,15 @@ const SidebarLink = ({ to, icon, children }: { to: string; icon: any; children: 
 export const Sidebar = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Add logout logic here (clear tokens, etc.)
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to login even if logout API fails
+      navigate('/login');
+    }
   };
 
   return (
