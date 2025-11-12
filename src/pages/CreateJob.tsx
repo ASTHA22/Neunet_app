@@ -190,31 +190,36 @@ export const CreateJob = ({ globalFormData, setGlobalFormData }: { globalFormDat
 
   return (
     <Box p={8}>
-      <Flex align="center" gap={2} mb={6}>
-        <Heading size="lg">Create Job</Heading>
-        <GradientButton
-          onClick={handleGenerateAIInline}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          style={{ marginLeft: 8 }}
-          disabled={isGenerating}
-        >
-          <FiZap size={20} color="white" />
-          <Text>Generate with AI</Text>
-        </GradientButton>
-        <Button
-          variant="ghost"
-          size="sm"
-          ml={2}
-          color="gray.500"
-          onClick={() => {
-            setFormData(initialFormData);
-            setGlobalFormData(initialFormData);
-          }}
-        >
-          Reset
-        </Button>
-      </Flex>
+      <Box mb={6}>
+        <Flex align="center" gap={2} mb={2}>
+          <Heading size="lg">Create Job</Heading>
+          <GradientButton
+            onClick={handleGenerateAIInline}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            style={{ marginLeft: 8 }}
+            disabled={isGenerating}
+          >
+            <FiZap size={20} color="white" />
+            <Text>Generate with AI</Text>
+          </GradientButton>
+          <Button
+            variant="ghost"
+            size="sm"
+            ml={2}
+            color="gray.500"
+            onClick={() => {
+              setFormData(initialFormData);
+              setGlobalFormData(initialFormData);
+            }}
+          >
+            Reset
+          </Button>
+        </Flex>
+        <Text fontSize="sm" color="gray.500">
+          Fill in job title, company name, location & job type — let AI handle the rest
+        </Text>
+      </Box>
       <form onSubmit={handleSubmit}>
         <VStack spacing={4} align="stretch">
           <FormControl isRequired>
