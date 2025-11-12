@@ -919,8 +919,14 @@ export const ChatPage = () => {
               bg="#9C6CFE"
               color="white"
               _hover={{ bg: '#8A5EE3' }}
+              _disabled={{ 
+                bg: 'gray.300', 
+                color: 'gray.500',
+                cursor: 'not-allowed',
+                opacity: 0.6
+              }}
               onClick={() => sendMessage()}
-              disabled={!wsConnected || !inputValue.trim() || isLoading}
+              isDisabled={!wsConnected || !inputValue.trim() || isLoading}
             />
           </Box>
           
