@@ -694,7 +694,14 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
             icon={<FiSend />}
             bg={useColorModeValue('purple.400', 'purple.300')}
             color="white"
-            _hover={{ bg: useColorModeValue('purple.500', 'purple.200') }}
+            cursor="pointer"
+            _hover={{ bg: useColorModeValue('purple.500', 'purple.200'), cursor: 'pointer' }}
+            _disabled={{ 
+              bg: 'gray.300', 
+              color: 'gray.500',
+              cursor: 'not-allowed',
+              opacity: 0.6
+            }}
             onClick={handleSend}
             isDisabled={!message.trim()}
           />
