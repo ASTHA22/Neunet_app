@@ -227,26 +227,47 @@ export const Login = () => {
           <LandingHero />
           
           {/* Demo Video Section */}
-          <Box 
-            mt={12} 
-            borderRadius="xl" 
-            overflow="hidden" 
-            boxShadow="2xl"
-            bg="white"
-            p={2}
-          >
-            <video
-              controls
-              style={{
-                width: '100%',
-                borderRadius: '8px',
-                display: 'block'
-              }}
+          <VStack spacing={4} mt={12}>
+            <Text 
+              fontSize={{ base: "2xl", md: "3xl" }} 
+              fontWeight="bold" 
+              textAlign="center"
+              bgGradient="linear(to-r, purple.400, pink.400)"
+              bgClip="text"
             >
-              <source src="/demo-video.mov" type="video/quicktime" />
-              Your browser does not support the video tag.
-            </video>
-          </Box>
+              See Neunet in Action ✨
+            </Text>
+            <Text 
+              fontSize={{ base: "md", md: "lg" }} 
+              color="gray.700" 
+              textAlign="center"
+              maxW="2xl"
+            >
+              Watch how AI transforms your hiring process in minutes
+            </Text>
+            
+            <Box 
+              w="full"
+              borderRadius="xl" 
+              overflow="hidden" 
+              boxShadow="2xl"
+              bg="white"
+              p={2}
+            >
+              <video
+                controls
+                style={{
+                  width: '100%',
+                  borderRadius: '8px',
+                  display: 'block'
+                }}
+              >
+                <source src="/demo-video.mp4" type="video/mp4" />
+                <source src="/demo-video.mov" type="video/quicktime" />
+                Your browser does not support the video tag.
+              </video>
+            </Box>
+          </VStack>
         </VStack>
       </Container>
       
