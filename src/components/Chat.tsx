@@ -695,6 +695,7 @@ const Chat = ({ isOpen, onClose, onAIGeneratedJob, candidateId: candidateIdProp,
             bg={useColorModeValue('purple.400', 'purple.300')}
             color="white"
             cursor="pointer"
+            transition="all 0.1s ease"
             _hover={{ bg: useColorModeValue('purple.500', 'purple.200'), cursor: 'pointer' }}
             _disabled={{ 
               bg: 'gray.300', 

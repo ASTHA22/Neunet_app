@@ -919,6 +919,7 @@ export const ChatPage = () => {
               bg="#9C6CFE"
               color="white"
               cursor="pointer"
+              transition="all 0.1s ease"
               _hover={{ bg: '#8A5EE3', cursor: 'pointer' }}
               _disabled={{ 
                 bg: 'gray.300', 
