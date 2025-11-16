@@ -232,16 +232,16 @@ export const Login = () => {
               fontSize={{ base: "2xl", md: "3xl" }} 
               fontWeight="bold" 
               textAlign="center"
-              color="white"
+              bgGradient="linear(to-r, purple.700, purple.900)"
+              bgClip="text"
             >
               See Neunet in Action ✨
             </Text>
             <Text 
               fontSize={{ base: "md", md: "lg" }} 
-              color="white" 
+              color="purple.800" 
               textAlign="center"
               maxW="2xl"
-              opacity={0.9}
             >
               Watch how AI transforms your hiring process in minutes
             </Text>
