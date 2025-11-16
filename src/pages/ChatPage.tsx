@@ -926,7 +926,7 @@ export const ChatPage = () => {
                 opacity: 0.6
               }}
               onClick={() => sendMessage()}
-              isDisabled={!wsConnected || !inputValue.trim() || isLoading}
+              isDisabled={!inputValue.trim() || isLoading}
             />
           </Box>
           
