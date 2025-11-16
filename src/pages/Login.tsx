@@ -222,9 +222,31 @@ export const Login = () => {
           <Button bg={useColorModeValue('purple.400', 'purple.300')} color="white" _hover={{ bg: useColorModeValue('purple.500', 'purple.200') }} variant="solid" fontWeight="bold" onClick={() => setIsSignupModalOpen(true)}>Get started</Button>
         </HStack>
       </Flex>
-      <Container maxW="container.sm" py={16}>
+      <Container maxW="container.lg" py={16}>
         <VStack spacing={8} align="stretch">
           <LandingHero />
+          
+          {/* Demo Video Section */}
+          <Box 
+            mt={12} 
+            borderRadius="xl" 
+            overflow="hidden" 
+            boxShadow="2xl"
+            bg="white"
+            p={2}
+          >
+            <video
+              controls
+              style={{
+                width: '100%',
+                borderRadius: '8px',
+                display: 'block'
+              }}
+            >
+              <source src="/demo-video.mov" type="video/quicktime" />
+              Your browser does not support the video tag.
+            </video>
+          </Box>
         </VStack>
       </Container>
       
